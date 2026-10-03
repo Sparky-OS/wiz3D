@@ -12,6 +12,7 @@
 #include "StdAfx.h"
 #include "BaseStereoRenderer.h"
 #include "ProxySwapChain9-inl.h"
+#include "..\OutputMethods\OutputLib\FullSideBySide.h"
 
 CMonoSwapChain::CMonoSwapChain(CMonoRenderer* pDirect3DDevice9, UINT index)
 {
@@ -71,12 +72,18 @@ void CMonoSwapChain::SetPresentationParameters(D3DPRESENT_PARAMETERS* pPresentat
 	if (m_OriginalPresentationParameters.hDeviceWindow == NULL)
 		m_OriginalPresentationParameters.hDeviceWindow = m_pD3D9Device->m_hFocusWindow;
 	if (m_OriginalPresentationParameters.Windowed && 
-		m_OriginalPresentationParameters.BackBufferWidth == 0 && m_OriginalPresentationParameters.BackBufferHeight == 0)
+		(m_OriginalPresentationParameters.BackBufferWidth == 0 || m_OriginalPresentationParameters.BackBufferHeight == 0))
 	{
 		RECT rc;
 		GetClientRect(m_OriginalPresentationParameters.hDeviceWindow, &rc);
-		m_OriginalPresentationParameters.BackBufferWidth = rc.right - rc.left;
-		m_OriginalPresentationParameters.BackBufferHeight = rc.bottom - rc.top;
+		if (m_OriginalPresentationParameters.BackBufferWidth == 0)
+		{
+			m_OriginalPresentationParameters.BackBufferWidth = rc.right - rc.left;
+			if (GetPropW(m_OriginalPresentationParameters.hDeviceWindow, kFullSideBySideWindow))
+				m_OriginalPresentationParameters.BackBufferWidth /= 2;
+		}
+		if (m_OriginalPresentationParameters.BackBufferHeight == 0)
+			m_OriginalPresentationParameters.BackBufferHeight = rc.bottom - rc.top;
 	}
 	if (pFullscreenDisplayMode)
 	{

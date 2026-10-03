@@ -15,6 +15,7 @@
 #include "stdafx.h"
 #include "Output_dx9.h"
 #include "S3DWrapper9\BaseSwapChain.h"
+#include "..\OutputLib\FullSideBySide.h"
 #include <tinyxml.h>
 
 using namespace DX9Output;
@@ -71,15 +72,27 @@ OUTPUT_API BOOL CALLBACK EnumOutputModes(DWORD num, char* name, DWORD size)
 	case 2:
 		strcpy_s(name, size, "Crosseyed");
 		return TRUE;
+	case 3:
+		strcpy_s(name, size, "Full side by side, left first (DX9)");
+		return TRUE;
 	default:
 		return FALSE;
 	}
 }
 
 SideBySideOutput::SideBySideOutput(DWORD mode, DWORD spanMode)
-: OutputMethod(mode, spanMode), m_bCrosseyed(false), m_DefaultGap(0)
+: OutputMethod(mode, spanMode), m_FullSideBySide(mode == 3), m_bCrosseyed(false), m_DefaultGap(0)
 {
-	if (mode != 2)
+	m_StatePath[0] = 0;
+	m_LastWindowState[0] = 0;
+	if (m_FullSideBySide)
+	{
+		if (GetEnvironmentVariableW(L"WIZ3D_STEREO_STATE", m_StatePath, MAX_PATH) >= MAX_PATH - 4)
+			m_StatePath[0] = 0;
+		m_OutputMode = 0;
+		m_SpanMode = 1;
+	}
+	else if (mode != 2)
 	{
 		m_OutputMode &= 1;
 	}
@@ -89,6 +102,27 @@ SideBySideOutput::SideBySideOutput(DWORD mode, DWORD spanMode)
 		m_OutputMode = 0;
 	}
 	m_Caps = ocHardwareMouseCursorNotSupported;
+}
+
+void SideBySideOutput::ModifyPresentParameters(IDirect3D9* pd3d, UINT nAdapter, D3DPRESENT_PARAMETERS* parameters)
+{
+	if (!m_FullSideBySide)
+	{
+		OutputMethod::ModifyPresentParameters(pd3d, nAdapter, parameters);
+		return;
+	}
+
+	// KWin consumes a window containing two complete eyes; no wide display mode is needed.
+	parameters[0].Windowed = TRUE;
+	parameters[0].FullScreen_RefreshRateInHz = 0;
+	OutputMethod::ModifyPresentParameters(pd3d, nAdapter, parameters);
+	HWND window = parameters[0].hDeviceWindow;
+	RECT rect = { 0, 0, (LONG)parameters[0].BackBufferWidth, (LONG)parameters[0].BackBufferHeight };
+	AdjustWindowRectEx(&rect, GetWindowLong(window, GWL_STYLE), GetMenu(window) != NULL,
+		GetWindowLong(window, GWL_EXSTYLE));
+	SetWindowPos(window, NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top,
+		SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+	SetPropW(window, kFullSideBySideWindow, (HANDLE)1);
 }
 
 UINT DX9Output::SideBySideOutput::GetOutputChainsNumber()
@@ -103,17 +137,55 @@ HRESULT SideBySideOutput::InitializeSCData(CBaseSwapChain* pSwapChain)
 	{
 		D3DSURFACE_DESC desc;
 		pSwapChain->m_pPrimaryBackBuffer->GetDesc(&desc);
-		pSwapChain->m_CurrentGap = m_DefaultGap;
+		pSwapChain->m_CurrentGap = m_FullSideBySide ? 0 : m_DefaultGap;
 		for (int i = 0; i < (int)m_Gap.size(); i++)
 		{
+			if (m_FullSideBySide)
+				break;
 			if (desc.Width == m_Gap[i].Width && desc.Height == m_Gap[i].Height)
 			{
 				pSwapChain->m_CurrentGap = m_Gap[i].Gap;
 				break;
 			}
 		}
+		if (m_FullSideBySide)
+			WriteWindowState(pSwapChain);
 	}
 	return hResult;
+}
+
+void SideBySideOutput::WriteWindowState(CBaseSwapChain* pSwapChain)
+{
+	if (!m_StatePath[0])
+		return;
+	D3DSURFACE_DESC desc;
+	if (FAILED(pSwapChain->m_pPrimaryBackBuffer->GetDesc(&desc)))
+		return;
+	ULONG_PTR xid = (ULONG_PTR)GetPropW(pSwapChain->GetAppWindow(), L"__wine_x11_whole_window");
+	wchar_t exe[MAX_PATH];
+	if (!GetModuleFileNameW(NULL, exe, MAX_PATH))
+		return;
+	const wchar_t* name = wcsrchr(exe, L'\\');
+	name = name ? name + 1 : exe;
+	char utf8[MAX_PATH * 3];
+	if (!WideCharToMultiByte(CP_UTF8, 0, name, -1, utf8, sizeof(utf8), NULL, NULL))
+		return;
+	char record[MAX_PATH * 3 + 80];
+	int size = sprintf_s(record, "wiz3d-full-sbs-v1 %lu %lu %llu\n%s\n", desc.Width, desc.Height, (unsigned long long)xid, utf8);
+	if (strcmp(record, m_LastWindowState) == 0)
+		return;
+	wchar_t temporary[MAX_PATH];
+	swprintf_s(temporary, L"%s.tmp", m_StatePath);
+	HANDLE file = CreateFileW(temporary, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file != INVALID_HANDLE_VALUE)
+	{
+		DWORD written;
+		BOOL success = WriteFile(file, record, size, &written, NULL);
+		CloseHandle(file);
+		if (success && written == (DWORD)size && MoveFileExW(temporary, m_StatePath, MOVEFILE_REPLACE_EXISTING))
+			strcpy_s(m_LastWindowState, record);
+	}
 }
 
 void SideBySideOutput::ReadConfigData( const char* configXml )
@@ -145,10 +217,14 @@ void SideBySideOutput::ReadConfigData( const char* configXml )
 
 SideBySideOutput::~SideBySideOutput(void)
 {
+	if (m_StatePath[0])
+		DeleteFileW(m_StatePath);
 }
 
 HRESULT SideBySideOutput::Output(CBaseSwapChain* pSwapChain)
 {
+	if (m_FullSideBySide)
+		WriteWindowState(pSwapChain);
 	HRESULT hResult = S_OK;
 	IDirect3DSurface9* left = pSwapChain->GetLeftBackBufferRT();
 	IDirect3DSurface9* right = pSwapChain->GetRightBackBufferRT();

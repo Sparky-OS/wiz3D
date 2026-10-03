@@ -29,7 +29,12 @@ public:
 	virtual HRESULT	Output(CBaseSwapChain* pSwapChain);
 	virtual HRESULT InitializeSCData(CBaseSwapChain* pSwapChain);
 	virtual void	ReadConfigData(const char* configXml);
+	virtual void ModifyPresentParameters(IDirect3D9* pd3d, UINT nAdapter, D3DPRESENT_PARAMETERS* parameters);
 private:
+	bool	m_FullSideBySide;
+	wchar_t m_StatePath[MAX_PATH];
+	char m_LastWindowState[MAX_PATH * 3 + 80];
+	void WriteWindowState(CBaseSwapChain* pSwapChain);
 	bool	m_bCrosseyed;
 	std::vector<ResolutionGap>	m_Gap;
 	int	m_DefaultGap;

@@ -20,6 +20,8 @@ using namespace DX10Output;
 
 OUTPUT_API void* CALLBACK CreateOutputDX10( DWORD nMode_, DWORD nSpanMode_ )
 {
+	if (nMode_ == 3)
+		return NULL; // Full-size window presentation is implemented only for DX9.
 	return new SideBySideOutput( nMode_, nSpanMode_ );
 }
 
