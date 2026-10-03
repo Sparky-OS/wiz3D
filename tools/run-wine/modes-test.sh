@@ -10,7 +10,7 @@ case "$OUT/" in "$WORKSPACE/"*) ;; *) echo 'Output must be in workspace' >&2; ex
 for CASE in mono half half-low; do
     MODE=$CASE; SEPARATION=.16
     if [ "$CASE" = half-low ]; then MODE=half; SEPARATION=.08; fi
-    CID=$(docker run -d --cpus 4 -v "$WORKSPACE:$WORKSPACE" wiz3d-wine-test \
+    CID=$(docker run -d --cpus 4 -e WIZ3D_TEST_DLL_DIR="${WIZ3D_TEST_DLL_DIR:-$REPO/out/x64}" -v "$WORKSPACE:$WORKSPACE" wiz3d-wine-test \
         bash "$REPO/tools/run-wine/run-test.sh" "$REPO" "$OUT/$CASE" "$MODE" "$SEPARATION")
     trap 'docker rm -f "$CID" >/dev/null' EXIT
     RESULT=$(docker wait "$CID")

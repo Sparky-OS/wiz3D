@@ -5,9 +5,10 @@
 #include <windows.h>
 #include <d3d9.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#define WIDTH  800
-#define HEIGHT 600
+static unsigned WIDTH = 800;
+static unsigned HEIGHT = 600;
 
 typedef struct { float x, y, z; DWORD color; } VERT;
 #define FVF (D3DFVF_XYZ | D3DFVF_DIFFUSE)
@@ -86,11 +87,11 @@ static void dump_backbuffer(const char *path)
 
 static void render(void)
 {
-    D3DMATRIX ident = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
+    D3DMATRIX ident = { .m = {{1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0,0,1}} };
     // Perspective LH, fov 90 deg, aspect 1, zn 1, zf 1000:
     // _11 = 1, _22 = 1, _33 = zf/(zf-zn), _34 = 1, _43 = -zn*_33.
     float m33 = 1000.0f / 999.0f;
-    D3DMATRIX proj = { 1,0,0,0, 0,1,0,0, 0,0,m33,1, 0,0,-m33,0 };
+    D3DMATRIX proj = { .m = {{1,0,0,0}, {0,1,0,0}, {0,0,m33,1}, {0,0,-m33,0}} };
     dev->lpVtbl->SetTransform(dev, D3DTS_VIEW, &ident);
     dev->lpVtbl->SetTransform(dev, D3DTS_WORLD, &ident);
     dev->lpVtbl->SetTransform(dev, D3DTS_PROJECTION, &proj);
@@ -110,6 +111,9 @@ static void render(void)
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
 {
     (void)prev; (void)cmd; (void)show;
+    if (getenv("PROBE_WIDTH")) WIDTH = strtoul(getenv("PROBE_WIDTH"), NULL, 10);
+    if (getenv("PROBE_HEIGHT")) HEIGHT = strtoul(getenv("PROBE_HEIGHT"), NULL, 10);
+    if (!WIDTH || !HEIGHT || WIDTH > 1600 || HEIGHT > 1000) return 6;
     WNDCLASSA wc = { 0 };
     wc.lpfnWndProc = DefWindowProcA;
     wc.hInstance = inst;
@@ -123,7 +127,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     if (!SetPropA(hwnd, "__wine_x11_WIZ3D_TEST", (HANDLE)(ULONG_PTR)0xC0DE) ||
         GetPropA(hwnd, "__wine_x11_WIZ3D_TEST") != (HANDLE)(ULONG_PTR)0xC0DE)
         return 4;
-    printf("PROBE: Win32 test property verified\n");
+    printf("PROBE: Win32 test property verified; pid=%lu xid=%p\n", GetCurrentProcessId(), GetPropA(hwnd, "__wine_x11_whole_window"));
 
     IDirect3D9 *d3d = Direct3DCreate9(D3D_SDK_VERSION);
     if (!d3d) { printf("PROBE FAIL: Direct3DCreate9\n"); return 2; }
@@ -134,7 +138,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     pp.BackBufferCount = 1;
     pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     pp.hDeviceWindow = hwnd;
-    pp.Windowed = TRUE;
+    pp.Windowed = getenv("PROBE_FULLSCREEN") ? FALSE : TRUE;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D16;
     pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
@@ -142,6 +146,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
                                            hwnd, D3DCREATE_HARDWARE_VERTEXPROCESSING,
                                            &pp, &dev);
     if (FAILED(hr)) { printf("PROBE FAIL: CreateDevice 0x%08lx\n", hr); return 3; }
+    if (getenv("PROBE_FULL_MODE")) {
+        typedef void *(CALLBACK *CreateOutput)(DWORD, DWORD);
+        HMODULE output = GetModuleHandleA("SideBySideOutput.dll");
+        CreateOutput create = (CreateOutput)(void *)GetProcAddress(output, "CreateOutputDX10");
+        if (!create || create(3, 0) != NULL) {
+            printf("PROBE FAIL: DX9-only mode accepted by DX10 output\n");
+            return 7;
+        }
+        printf("PROBE: DX10 correctly rejects the DX9-only mode\n");
+    }
     dev->lpVtbl->SetRenderState(dev, D3DRS_LIGHTING, FALSE);
     dev->lpVtbl->SetRenderState(dev, D3DRS_CULLMODE, D3DCULL_NONE);
     dev->lpVtbl->SetFVF(dev, FVF);
@@ -169,7 +183,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
         if (attr != INVALID_FILE_ATTRIBUTES) break;
         render();
         if (err_reported) break;
-        if (++frames == 10) { printf("PROBE: ready\n"); fflush(stdout); }
+        if (++frames == 10 && getenv("PROBE_RESET")) {
+            pp.BackBufferWidth = (getenv("PROBE_RESET_AUTO") || getenv("PROBE_RESET_WIDTH_ONLY")) ? 0 : WIDTH;
+            pp.BackBufferHeight = getenv("PROBE_RESET_AUTO") ? 0 : HEIGHT;
+            checkhr(dev->lpVtbl->Reset(dev, &pp), "Reset");
+            dev->lpVtbl->SetRenderState(dev, D3DRS_LIGHTING, FALSE);
+            dev->lpVtbl->SetRenderState(dev, D3DRS_CULLMODE, D3DCULL_NONE);
+            dev->lpVtbl->SetFVF(dev, FVF);
+            printf("PROBE: reset completed\n");
+        }
+        if (frames == 20) { printf("PROBE: ready\n"); fflush(stdout); }
         if (GetFileAttributesA(dumpfile) != INVALID_FILE_ATTRIBUTES) {
             dump_backbuffer("frame-bb.ppm");
             DeleteFileA(dumpfile);

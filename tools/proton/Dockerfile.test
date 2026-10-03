@@ -1,0 +1,2 @@
+FROM wiz3d-wine-test
+RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends python3-xlib libx11-6 libwayland-client0 && rm -rf /var/lib/apt/lists/*
