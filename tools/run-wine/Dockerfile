@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN dpkg --add-architecture i386 \
  && apt-get update -qq && apt-get install -y --no-install-recommends \
     wine64 wine32:i386 wine \
-    xvfb x11-utils xauth \
+    xvfb x11-utils x11-apps xauth \
     mesa-vulkan-drivers mesa-vulkan-drivers:i386 \
     vulkan-tools \
     python3 python3-pil python3-numpy \
