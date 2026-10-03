@@ -110,6 +110,9 @@ void EnsureWrapperInitialized()
 		return;
 
 	InitDirectories();
+	char enable3D[2];
+	if (GetEnvironmentVariableA("WIZ3D_ENABLE_3D", enable3D, sizeof(enable3D)) == 1 && enable3D[0] == '0')
+		gInfo.UseMonoDeviceWrapper = true;
 	DetectShutterMode();
 	InitializeMadCHook();
 
