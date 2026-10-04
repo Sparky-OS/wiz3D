@@ -1,0 +1,10 @@
+debian/stage/x64 usr/lib/wiz3d
+debian/stage/x86 usr/lib/wiz3d
+tools/proton/wiz3d-run usr/bin
+tools/proton/README.md usr/share/doc/wiz3d
+tools/proton/PACKAGING.md usr/share/doc/wiz3d
+tools/proton/VALIDATION.md usr/share/doc/wiz3d
+LICENSE usr/share/doc/wiz3d
+LICENSE-iZ3D.txt usr/share/doc/wiz3d
+THIRD_PARTY_NOTICES.txt usr/share/doc/wiz3d
+debian/fetched.txt usr/share/doc/wiz3d

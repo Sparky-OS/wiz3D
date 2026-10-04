@@ -1,0 +1,41 @@
+.TH WIZ3D-RUN 1 "October 2026" "wiz3d 0.3.1" "Sparky Stereo OS"
+.SH NAME
+wiz3d-run \- start a Direct3D 9 game with wiz3D stereo and declare its window to KWin
+.SH SYNOPSIS
+.B wiz3d-run
+[\fB\-\-enable\-3d\fR | \fB\-\-disable\-3d\fR] [\fB\-\-steam\-app\-id\fR \fIID\fR] \fB\-\-\fR \fIcommand\fR [\fIargument\fR ...]
+.br
+.B wiz3d-run \-\-display\-settings
+.SH DESCRIPTION
+Runs \fIcommand\fR with the d3d9 override for wiz3D and tells KWin, through
+libstereo-declare, that the game's window holds full side by side, left eye first.
+KWin chooses the output format in Display settings.
+The wiz3D DLLs must be in the game's folder: copy
+/usr/lib/wiz3d/x64 (64-bit game) or /usr/lib/wiz3d/x86 (32-bit game).
+.PP
+As a Steam launch option:
+.B wiz3d-run \-\- %command%
+.SH OPTIONS
+.TP
+.B \-\-enable\-3d
+Declare the game window (default).
+.TP
+.B \-\-disable\-3d
+Run the game without stereo and without a declaration for this launch.
+.TP
+.BI \-\-steam\-app\-id " ID"
+Match steam_app_ID if Proton reparents the game (default: $SteamAppId).
+.TP
+.B \-\-display\-settings
+Open Display settings (kcmshell6 kcm_kscreen).
+.SH FILES
+.TP
+/usr/lib/wiz3d/x64, /usr/lib/wiz3d/x86
+The Windows DLL trees to copy into a game's folder.
+.TP
+/usr/share/doc/wiz3d
+Licences, notes and the record of what the build downloaded.
+.SH EXIT STATUS
+The game's exit status; 1 if the game exits normally but no window was declared.
+.SH AUTHOR
+Sparky Stereo OS, an edition of SparkyLinux, created by Pawe\(sl "pavroo" Pijanowski and Daniel Ramos (Capitain Jack).

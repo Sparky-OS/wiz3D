@@ -1,0 +1,177 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: wiz3D
+Upstream-Contact: https://github.com/effcol/wiz3D
+Source: https://github.com/danielcamposramos/wiz3D (branch partner/wiz3d-proton, fork of https://github.com/effcol/wiz3D, upstream tag v0.3.1)
+Comment: wiz3D is derived from the iZ3D stereo driver (https://github.com/bo3b/iZ3D).
+ iZ3D Inc.'s code, Copyright (C) iZ3D Inc. 2002 - 2010, was open-sourced under
+ the MIT License by its developers through Bo3b Johnson in 2020, and
+ /usr/share/doc/wiz3d/LICENSE-iZ3D.txt is that notice verbatim. The wiz3D
+ developers' work (effcol and contributors) is under the GNU Lesser General
+ Public License, version 2.1: /usr/share/doc/wiz3d/LICENSE.
+ .
+ The DLLs are cross-built with clang-cl and lld-link against the Windows SDK,
+ the MSVC runtime and ATL, fetched by xwin at build time (see
+ /usr/share/doc/wiz3d/fetched.txt). Those downloads are not shipped, but the
+ static runtime and ATL code the linker takes from them is part of the DLLs.
+ Third-party libraries linked statically from ThirdPartyLibs/ and lib/ are
+ listed below and in THIRD_PARTY_NOTICES.txt. This package has not had a
+ complete third-party redistribution audit.
+
+Files: *
+Copyright: 2002-2010 iZ3D Inc.
+           2020 Bo3b Johnson
+License: Expat-iZ3D
+
+Files: S3DAPI/* S3DWrapper9/* S3DWrapper10/* S3DWrapper12/* S3DWrapper7/* S3DWrapper8/* S3DWrapperOGL/* S3DWrapperVK/* OutputMethods/* wiz3D-proxy/* tools/* Shared/* ControlCenter/* S3DInjector/* UILIB/* Testing/* TestsPack/* README.md README.txt VERSION.txt
+Copyright: 2002-2010 iZ3D Inc.
+           2020 Bo3b Johnson
+           the wiz3D developers (effcol and contributors)
+           2026 Daniel Campos Ramos
+License: LGPL-2.1
+Comment: Files that still carry only iZ3D Inc.'s header are MIT (Expat-iZ3D); the
+ wiz3D developers' additions and changes are LGPL-2.1.
+
+Files: lib/*
+Copyright: the authors named in each library
+License: Various
+Comment: Vendored helper code (madCHook, ticpp and TinyXML, LlamaXML shim) with
+ the licences named in THIRD_PARTY_NOTICES.txt.
+
+Files: ThirdPartyLibs/MinHook_v1.3.4/*
+Copyright: 2009-2017 Tsuda Kageyu
+           2008-2009 Vyacheslav Patkov
+License: BSD-2-clause
+
+Files: ThirdPartyLibs/zlib_v1.3.2/*
+Copyright: 1995-2026 Jean-loup Gailly and Mark Adler
+License: Zlib
+
+Files: ThirdPartyLibs/boost_v1.91.0/*
+Copyright: the Boost authors
+License: BSL-1.0
+
+Files: ThirdPartyLibs/libsquish_v1.15/*
+Copyright: 2006 Simon Brown
+License: Expat
+
+Files: ThirdPartyLibs/xerces-c_v3.3.0/*
+Copyright: The Apache Software Foundation
+License: Apache-2.0
+
+Files: ThirdPartyLibs/DevIL_v1.8.0/*
+Copyright: Denton Woods
+License: LGPL-2.1
+
+Files: ThirdPartyLibs/DirectXSDK_Jun2010/*
+Copyright: Microsoft Corporation
+License: DirectX-SDK
+Comment: Import libraries and headers for d3dx9 and DxErr, used at link time. Microsoft's
+ d3dx9_43.dll is not shipped; Wine and Proton provide a builtin one.
+
+Files: debian/*
+Copyright: 2026 Daniel Ramos (Capitain Jack) <Capitain_Jack@yahoo.com>
+License: LGPL-2.1
+Comment: Sparky Stereo OS packaging. Sparky Stereo OS, an edition of SparkyLinux (https://sparkylinux.org),
+ created by Paweł "pavroo" Pijanowski <pavroo@onet.eu> and Daniel Ramos (Capitain Jack) <Capitain_Jack@yahoo.com>.
+
+License: Expat-iZ3D
+ MIT License
+ .
+ Copyright (c) 2020 Bo3b Johnson
+ .
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+License: LGPL-2.1
+ On Debian systems the full text of the GNU Lesser General Public License
+ version 2.1 is in /usr/share/common-licenses/LGPL-2.1, and the verbatim
+ copy from the source is /usr/share/doc/wiz3d/LICENSE.
+
+License: BSD-2-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ .
+ 1. Redistributions of source code must retain the above copyright notice,
+    this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
+
+License: Zlib
+ This software is provided 'as-is', without any express or implied warranty.
+ In no event will the authors be held liable for any damages arising from the
+ use of this software.
+ .
+ Permission is granted to anyone to use this software for any purpose,
+ including commercial applications, and to alter it and redistribute it freely,
+ subject to the following restrictions:
+ .
+ 1. The origin of this software must not be misrepresented; you must not
+    claim that you wrote the original software. If you use this software in a
+    product, an acknowledgment in the product documentation would be
+    appreciated but is not required.
+ 2. Altered source versions must be plainly marked as such, and must not be
+    misrepresented as being the original software.
+ 3. This notice may not be removed or altered from any source distribution.
+
+License: BSL-1.0
+ Boost Software License - Version 1.0 - August 17th, 2003. The full text is in
+ ThirdPartyLibs/boost_v1.91.0/LICENSE and in /usr/share/doc/wiz3d/THIRD_PARTY_NOTICES.txt.
+
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0. On Debian systems the full
+ text is in /usr/share/common-licenses/Apache-2.0.
+
+License: DirectX-SDK
+ Microsoft DirectX Software Development Kit (June 2010) licence terms. The
+ full text is in ThirdPartyLibs/DirectXSDK_Jun2010/LICENSE of the source.
+
+License: Various
+ Each vendored helper keeps the licence stated in its own folder and in
+ /usr/share/doc/wiz3d/THIRD_PARTY_NOTICES.txt.

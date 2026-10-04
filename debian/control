@@ -1,0 +1,40 @@
+Source: wiz3d
+Section: utils
+Priority: optional
+Maintainer: Daniel Ramos (Capitain Jack) <Capitain_Jack@yahoo.com>
+Build-Depends: ca-certificates,
+               clang,
+               curl,
+               debhelper-compat (= 13),
+               lld,
+               llvm,
+               llvm-tools,
+               ninja-build,
+               python3,
+               xz-utils
+Standards-Version: 4.7.2
+Rules-Requires-Root: no
+Homepage: https://sparkylinux.org
+Vcs-Git: https://github.com/danielcamposramos/wiz3D.git
+Vcs-Browser: https://github.com/danielcamposramos/wiz3D
+
+Package: wiz3d
+Architecture: amd64
+Depends: kwin-wayland (>= 4:6.7.4-2+stereo3d13),
+         libstereo-declare1,
+         libx11-6,
+         python3,
+         python3-xlib,
+         ${misc:Depends}
+Recommends: kscreen
+Suggests: wine
+Description: Stereo 3D for Direct3D 9 games on Wine and Proton, full side by side
+ wiz3D, the stereo wrapper from the iZ3D driver, renders a Direct3D 9 game
+ once per eye and hands KWin one format: full side by side, left eye first,
+ declared on the game window. KWin shows it in whatever stereo output the
+ screen uses.
+ .
+ The package ships the Windows proxy DLLs for 64-bit (/usr/lib/wiz3d/x64) and
+ 32-bit (/usr/lib/wiz3d/x86) games, and wiz3d-run, the launcher that declares
+ the window. Copy the matching tree into the game's folder and use
+ "wiz3d-run -- %command%" as the Steam launch option.

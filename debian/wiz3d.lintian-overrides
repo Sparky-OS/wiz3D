@@ -1,0 +1,9 @@
+# Each architecture's tree is copied whole into a game's folder, so it carries its own licence texts.
+wiz3d: extra-license-file [usr/lib/wiz3d/x64/LICENSE]
+wiz3d: extra-license-file [usr/lib/wiz3d/x86/LICENSE]
+wiz3d: package-contains-documentation-outside-usr-share-doc [usr/lib/wiz3d/x64/LICENSE]
+wiz3d: package-contains-documentation-outside-usr-share-doc [usr/lib/wiz3d/x64/LICENSE-iZ3D.txt]
+wiz3d: package-contains-documentation-outside-usr-share-doc [usr/lib/wiz3d/x86/LICENSE]
+wiz3d: package-contains-documentation-outside-usr-share-doc [usr/lib/wiz3d/x86/LICENSE-iZ3D.txt]
+# The verbatim LGPL text from the source is kept in the doc folder as well as in debian/copyright.
+wiz3d: extra-license-file [usr/share/doc/wiz3d/LICENSE]

@@ -1,0 +1,8 @@
+wiz3d (0.3.1+stereo3d1) testing; urgency=medium
+
+  * Packaging of the Sparky Stereo OS fork (danielcamposramos/wiz3D, branch
+    partner/wiz3d-proton, upstream effcol/wiz3D v0.3.1): Direct3D 9 chain
+    built with clang-cl and xwin, full side by side as the only output
+    plug-in, wiz3d-run launcher declaring through libstereo-declare.
+
+ -- Daniel Ramos (Capitain Jack) <Capitain_Jack@yahoo.com>  Sun, 04 Oct 2026 19:00:00 -0300

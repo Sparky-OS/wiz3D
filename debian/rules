@@ -1,0 +1,42 @@
+#!/usr/bin/make -f
+# The Windows DLLs are cross-built with clang-cl, lld-link and xwin (Windows
+# SDK, CRT and ATL downloaded at build time into debian/xwin, never shipped).
+export DEB_BUILD_MAXIMUM_PARALLEL ?= 4
+XWIN_VERSION = 0.6.7
+XWIN_SHA256 = 0a2411665ba8cce7d841528566d2eedc7c88dccb12b087aac394811c61e6751b
+REV = $(shell dpkg-parsechangelog -SVersion)
+DATE = $(shell date -u -d "$$(dpkg-parsechangelog -SDate)" +%Y-%m-%d)
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	XWIN_VERSION=$(XWIN_VERSION) XWIN_SHA256=$(XWIN_SHA256) sh debian/fetch-xwin.sh
+	for arch in x64 x86; do \
+	  XA=x86_64; [ $$arch = x86 ] && XA=x86; \
+	  B=$(CURDIR)/debian/build/$$arch; mkdir -p $$B; \
+	  python3 tools/build-linux/make_vfs.py $$B/vfs.json $(CURDIR) $(CURDIR)/debian/xwin/crt/include $(CURDIR)/debian/xwin/sdk/include || exit 1; \
+	  python3 tools/build-linux/gen_version.py $(CURDIR) $$B/ver "$(REV)" $(DATE) || exit 1; \
+	  WIZ3D_ARCH=$$arch XWIN_DIR=$(CURDIR)/debian/xwin python3 tools/build-linux/gen_build.py $(CURDIR) $$B || exit 1; \
+	  ninja -C $$B -j$(DEB_BUILD_MAXIMUM_PARALLEL) all || exit 1; \
+	  python3 tools/build-linux/stage.py $$B debian/stage/$$arch $(CURDIR) $$arch || exit 1; \
+	done
+	python3 tools/proton/check-package.py $(CURDIR) debian/stage
+
+override_dh_auto_test:
+
+override_dh_auto_clean:
+	rm -rf debian/build debian/stage debian/xwin debian/xwin-cache debian/xwin-bin debian/fetched.txt
+
+# The PE files are not ELF: nothing to strip, and they stay byte-identical.
+override_dh_strip:
+override_dh_strip_nondeterminism:
+
+# The DLLs run inside the game's Wine process: no execute bit, and the two
+# licence texts stay uncompressed so they are the repository's files verbatim.
+override_dh_fixperms:
+	dh_fixperms
+	find debian/wiz3d/usr/lib/wiz3d -name '*.dll' -exec chmod 644 {} +
+
+override_dh_compress:
+	dh_compress -X/LICENSE -X/LICENSE-iZ3D.txt
