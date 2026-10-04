@@ -8,8 +8,9 @@ D=$(realpath -m "${1:?Usage: test-kwin.sh NEW-EVIDENCE-DIRECTORY}")
 mkdir -p "$D"
 RUN=${WIZ3D_TEST_RUN:-/usr/bin/wiz3d-run}
 HERE=$(dirname "$(realpath "$0")")
-export XDG_RUNTIME_DIR=$D/runtime
-mkdir -m 700 "$XDG_RUNTIME_DIR"
+# A short path: socket names of the compositor and Xwayland must fit in 108 bytes.
+XDG_RUNTIME_DIR=$(mktemp -d /tmp/wiz3d-rt.XXXXXX)
+export XDG_RUNTIME_DIR
 export LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=4 QT_QPA_PLATFORM=offscreen
 dbus-run-session -- bash -s "$D" "$RUN" "$HERE" <<'TESTS'
 D=$1; RUN=$2; HERE=$3

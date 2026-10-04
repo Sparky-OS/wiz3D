@@ -9,8 +9,9 @@ REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=$(realpath -m "${1:?Usage: test-kwin-dxvk.sh NEW-EVIDENCE-DIRECTORY}")
 [ ! -e "$OUT" ] || { echo "Refusing to reuse $OUT" >&2; exit 2; }
 mkdir -p "$OUT"
-export XDG_RUNTIME_DIR=$OUT/runtime
-mkdir -m 700 "$XDG_RUNTIME_DIR"
+# A short path: socket names of the compositor and Xwayland must fit in 108 bytes.
+XDG_RUNTIME_DIR=$(mktemp -d /tmp/wiz3d-rt.XXXXXX)
+export XDG_RUNTIME_DIR
 export LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=4 QT_QPA_PLATFORM=offscreen
 export WIZ3D_TEST_DLL_DIR=${WIZ3D_TEST_DLL_DIR:-/usr/lib/wiz3d/x64} WIZ3D_TEST_RUN=${WIZ3D_TEST_RUN:-/usr/bin/wiz3d-run}
 export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)}
