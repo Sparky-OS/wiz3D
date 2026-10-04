@@ -9,7 +9,8 @@ import sys
 import tempfile
 from Xlib import X, Xatom, display
 
-module = importlib.machinery.SourceFileLoader('launcher', str(Path(__file__).with_name('wiz3d-run'))).load_module()
+RUN = Path(os.environ.get('WIZ3D_TEST_RUN') or Path(__file__).with_name('wiz3d-run'))
+module = importlib.machinery.SourceFileLoader('launcher', str(RUN)).load_module()
 x = display.Display()
 root = x.screen().root
 support = x.intern_atom('_KDE_NET_WM_STEREO_CONTENT_SUPPORTED')
@@ -95,12 +96,12 @@ with tempfile.TemporaryDirectory() as temp:
     fake.write_text('#!/bin/sh\n[ "$#" = 1 ] && [ "$1" = kcm_kscreen ]\n')
     fake.chmod(0o755)
     env = dict(os.environ, PATH=temp + ':' + os.environ['PATH'])
-    subprocess.run([str(Path(__file__).with_name('wiz3d-run')), '--display-settings'], env=env, check=True)
+    subprocess.run([str(RUN), '--display-settings'], env=env, check=True)
 print('PASS: state parsing and Display settings shortcut')
-result = subprocess.run([str(Path(__file__).with_name('wiz3d-run')), '--disable-3d', '--', 'sh', '-c', 'exit 7'])
+result = subprocess.run([str(RUN), '--disable-3d', '--', 'sh', '-c', 'exit 7'])
 assert result.returncode == 7
 print('PASS: game exit status preserved')
-result = subprocess.run([str(Path(__file__).with_name('wiz3d-run')), '--', 'true'])
+result = subprocess.run([str(RUN), '--', 'true'])
 assert result.returncode == 1
 print('PASS: missing packed game window cannot report success')
 x.close()

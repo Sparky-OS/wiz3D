@@ -67,10 +67,14 @@ def main():
     p.add_argument('--mode', choices=['mono', 'half', 'full'], default='half')
     p.add_argument('--separation', type=float, default=.16)
     p.add_argument('--render-width', type=int, default=800)
+    p.add_argument('--swapped', action='store_true', help='expect the eyes in the opposite places')
     p.add_argument('--render-height', type=int, default=600)
     a = p.parse_args()
     img = read_xwd(a.frame)
     Image.fromarray(img).save(a.png)
+    if a.swapped:
+        half = img.shape[1] // 2
+        img = np.concatenate([img[:, half:], img[:, :half]], 1)
     check(img, a.mode, a.separation, a.render_width, a.render_height)
     print('PASS:', a.mode, img.shape)
 
