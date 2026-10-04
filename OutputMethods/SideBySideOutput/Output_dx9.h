@@ -32,6 +32,7 @@ public:
 	virtual void ModifyPresentParameters(IDirect3D9* pd3d, UINT nAdapter, D3DPRESENT_PARAMETERS* parameters);
 private:
 	bool	m_FullSideBySide;
+	bool	m_KWinDoubles;
 	wchar_t m_StatePath[MAX_PATH];
 	char m_LastWindowState[MAX_PATH * 3 + 80];
 	void WriteWindowState(CBaseSwapChain* pSwapChain);

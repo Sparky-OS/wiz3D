@@ -31,7 +31,7 @@ prefix needs both. The optional Leia SDK and NVAPI are not used by this build.
 
 Install `wiz3d-run` on PATH, Python 3 with python-xlib, and the shared
 `libstereo-declare.so.1` from plasma-wayland-protocols/stereo-declare. KWin must
-advertise declaration version 2 on this X11/Xwayland display. Use this Steam
+advertise declaration version 2 or newer on this X11/Xwayland display. Use this Steam
 launch option:
 
 ```

@@ -69,7 +69,8 @@ class Declaration:
         self.lib.stereo_supported_x11.argtypes = [ctypes.c_void_p]
         self.lib.stereo_declare_x11.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
         self.lib.stereo_remove_x11.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
-        if self.lib.stereo_supported_x11(self.native) < 2:
+        self.version = self.lib.stereo_supported_x11(self.native)
+        if self.version < 2:
             self.close()
             raise RuntimeError('KWin stereo declaration support version 2 is required')
         self.pid_atom = self.x.intern_atom('_NET_WM_PID')
@@ -145,6 +146,8 @@ def main():
     declaration = Declaration() if args.enabled else None
     env = os.environ.copy()
     env['WIZ3D_ENABLE_3D'] = '1' if args.enabled else '0'
+    if declaration and declaration.version >= 3:
+        env['WIZ3D_KWIN_DOUBLES'] = '1'
     overrides = env.get('WINEDLLOVERRIDES', '')
     env['WINEDLLOVERRIDES'] = overrides + (';' if overrides else '') + 'd3d9=n,b'
     with tempfile.TemporaryDirectory(prefix='wiz3d-', dir=env.get('XDG_RUNTIME_DIR')) as temp:

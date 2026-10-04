@@ -26,6 +26,17 @@ else:
 root.change_property(support, Xatom.CARDINAL, 32, [2])
 x.sync()
 d = module.Declaration()
+assert d.version == 2
+d.close()
+root.change_property(support, Xatom.CARDINAL, 32, [3])
+x.sync()
+d = module.Declaration()
+assert d.version == 3
+d.close()
+root.change_property(support, Xatom.CARDINAL, 32, [2])
+x.sync()
+d = module.Declaration()
+print('PASS: declaration support version read from the root')
 
 
 def window(width=1600, pid=os.getpid(), name='test.exe'):

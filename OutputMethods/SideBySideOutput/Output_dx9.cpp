@@ -85,6 +85,7 @@ SideBySideOutput::SideBySideOutput(DWORD mode, DWORD spanMode)
 {
 	m_StatePath[0] = 0;
 	m_LastWindowState[0] = 0;
+	m_KWinDoubles = GetEnvironmentVariableW(L"WIZ3D_KWIN_DOUBLES", NULL, 0) != 0;
 	if (m_FullSideBySide)
 	{
 		if (GetEnvironmentVariableW(L"WIZ3D_STEREO_STATE", m_StatePath, MAX_PATH) >= MAX_PATH - 4)
@@ -117,7 +118,8 @@ void SideBySideOutput::ModifyPresentParameters(IDirect3D9* pd3d, UINT nAdapter, 
 	parameters[0].FullScreen_RefreshRateInHz = 0;
 	OutputMethod::ModifyPresentParameters(pd3d, nAdapter, parameters);
 	HWND window = parameters[0].hDeviceWindow;
-	RECT rect = { 0, 0, (LONG)parameters[0].BackBufferWidth, (LONG)parameters[0].BackBufferHeight };
+	// KWin doubles the declared window itself, so the window keeps one eye's width.
+	RECT rect = { 0, 0, (LONG)parameters[0].BackBufferWidth / (m_KWinDoubles ? 2 : 1), (LONG)parameters[0].BackBufferHeight };
 	AdjustWindowRectEx(&rect, GetWindowLong(window, GWL_STYLE), GetMenu(window) != NULL,
 		GetWindowLong(window, GWL_EXSTYLE));
 	SetWindowPos(window, NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top,
