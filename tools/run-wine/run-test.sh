@@ -26,7 +26,7 @@ if [ "$LAUNCHER" = 1 ] && [ -z "${WIZ3D_TEST_DISPLAY:-}" ]; then
     # Emulate only KWin's advertised declaration contract in this private Xvfb.
     xprop -root -f _KDE_NET_WM_STEREO_CONTENT_SUPPORTED 32c -set _KDE_NET_WM_STEREO_CONTENT_SUPPORTED "${WIZ3D_TEST_SUPPORT:-2}"
 fi
-wineboot -u >"$D/wineboot.log" 2>&1
+WINEDLLOVERRIDES=mscoree,mshtml= wineboot -u >"$D/wineboot.log" 2>&1
 wineserver -w
 cp /opt/dxvk/x64/d3d9.dll "$WINEPREFIX/drive_c/windows/system32/d3d9.dll"
 # A 32-bit game runs in the WoW64 prefix, with its own DXVK in syswow64.
