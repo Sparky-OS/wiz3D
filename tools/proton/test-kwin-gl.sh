@@ -27,7 +27,7 @@ xprop -root _KDE_NET_WM_STEREO_CONTENT_SUPPORTED | tee "$D/root-support.txt"
 WINEDLLOVERRIDES=mscoree,mshtml= wineboot -u > "$D/wineboot.log" 2>&1
 wineserver -w
 cd "$D/game"
-wine glstereo.exe 25 > "$D/glstereo.log" 2>&1 &
+wine glstereo.exe 25 ${WIZ3D_TEST_GLMODE:-} > "$D/glstereo.log" 2>&1 &
 for i in $(seq 1 120); do grep -q 'GLSTEREO: ready\|GLSTEREO FAIL' "$D/glstereo.log" && break; sleep .5; done
 cat "$D/glstereo.log"
 sleep 1
@@ -38,6 +38,21 @@ xprop -id "$WID" _KDE_NET_WM_STEREO_CONTENT > "$D/declaration-whole.txt" 2>&1
 cat "$D/declaration-whole.txt"
 /opt/wiz3d-capture/kwin-capture --screen > "$D/capture.txt" 2>&1
 cat "$D/capture.txt"
+if [ "${WIZ3D_TEST_GLMODE:-}" = mono ]; then
+    grep -q 'STEREO_CONTENT(CARDINAL) = [1-9]' "$D/declaration-whole.txt" && fail "mono program is declared" || echo "PASS: mono program is undeclared"
+    python3 - "$D/capture.txt" <<'PY' || status=1
+import re, sys
+t = open(sys.argv[1]).read()
+red = re.search(r'red_at\((\d+),(\d+)\)', t)
+green = re.search(r'green_at\((\d+),(\d+)\)', t)
+ok = red and not green
+print('PASS: red only, green absent (red at x=%s)' % red.group(1) if ok else 'FAIL: red %s green %s' % (red, green))
+sys.exit(0 if ok else 1)
+PY
+    wineserver -k
+    kill $KWIN; wait $KWIN 2>/dev/null
+    exit $status
+fi
 grep -q 'STEREO_CONTENT(CARDINAL) = 3' "$D/declaration-whole.txt" && echo "PASS: whole window carries the declaration" || fail "no declaration on the whole window"
 python3 - "$D/capture.txt" <<'PY' || status=1
 import re, sys

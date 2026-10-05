@@ -18,12 +18,16 @@ SUITES=${*:-kwin frames}
 mkdir -p "$OUT"
 CID=$(docker run -d --cpus 4 --cap-add SYS_NICE --device /dev/dri/renderD128 --group-add 125 \
     -v /K3D/temp/sparky-os/repo:/repo:ro -v "$DEBS:/deb:ro" -v "$REPO:$REPO:ro" -v "$OUT:$OUT" \
-    -e REPO="$REPO" -e OUT="$OUT" -e SUITES="$SUITES" -e TESTUID="$(id -u)" -e WIZ3D_TEST_ARCH="${WIZ3D_TEST_ARCH:-x64}" -e WIZ3D_TEST_WINEDEBUG="${WIZ3D_TEST_WINEDEBUG:--all}" -e WIZ3D_TEST_SUPPORT="${WIZ3D_TEST_SUPPORT:-2}" ${WIZ3D_TEST_WINE:+-v "$WIZ3D_TEST_WINE:/opt/wine-stereo:ro" -e WIZ3D_TEST_WINE=1} ${WIZ3D_TEST_CAPTURE:+-v "$WIZ3D_TEST_CAPTURE:/opt/wiz3d-capture:ro"} ${WIZ3D_TEST_DXVK:+-v "$WIZ3D_TEST_DXVK:/opt/dxvk:ro"} ${WIZ3D_TEST_STEAMID:+-e SteamGameId="$WIZ3D_TEST_STEAMID" -e SteamAppId="$WIZ3D_TEST_STEAMID"} wiz3d-pkgtest-base bash -c '
+    -e REPO="$REPO" -e OUT="$OUT" -e SUITES="$SUITES" -e TESTUID="$(id -u)" ${WIZ3D_TEST_MESA:+-e WIZ3D_TEST_MESA=$WIZ3D_TEST_MESA} -e WIZ3D_TEST_ARCH="${WIZ3D_TEST_ARCH:-x64}" -e WIZ3D_TEST_WINEDEBUG="${WIZ3D_TEST_WINEDEBUG:--all}" -e WIZ3D_TEST_SUPPORT="${WIZ3D_TEST_SUPPORT:-2}" -e WIZ3D_TEST_GLMODE="${WIZ3D_TEST_GLMODE:-}" ${WIZ3D_TEST_WINE:+-v "$WIZ3D_TEST_WINE:/opt/wine-stereo:ro" -e WIZ3D_TEST_WINE=1} ${WIZ3D_TEST_CAPTURE:+-v "$WIZ3D_TEST_CAPTURE:/opt/wiz3d-capture:ro"} ${WIZ3D_TEST_DXVK:+-v "$WIZ3D_TEST_DXVK:/opt/dxvk:ro"} ${WIZ3D_TEST_STEAMID:+-e SteamGameId="$WIZ3D_TEST_STEAMID" -e SteamAppId="$WIZ3D_TEST_STEAMID"} wiz3d-pkgtest-base bash -c '
 set -u
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
+if [ -n "${WIZ3D_TEST_MESA:-}" ]; then
+    up=$(dpkg-query -W -f="\${Package}=\${Version}\\n" | grep "+stereo3d4$" | sed "s/stereo3d4$/stereo3d$WIZ3D_TEST_MESA/" | grep -E "mesa|^libgl|^libegl|^libgbm|^libglapi|^libxatracker|^libosmesa")
+    apt-get -y install $up > "$OUT/mesa-upgrade.log" 2>&1 || { tail -20 "$OUT/mesa-upgrade.log"; exit 1; }
+fi
 apt-get -y install /deb/wiz3d_*.deb > "$OUT/install.log" 2>&1 || { tail -20 "$OUT/install.log"; exit 1; }
-dpkg -l wiz3d kwin-wayland libstereo-declare1 mesa-vulkan-drivers wine64 | grep ^ii | tee "$OUT/versions.txt"
+dpkg -l wiz3d kwin-wayland libgl1-mesa-dri libglx-mesa0 libstereo-declare1 mesa-vulkan-drivers wine64 | grep ^ii | tee "$OUT/versions.txt"
 dpkg -L wiz3d > "$OUT/installed-files.txt"
 groupadd -g 125 hostrender
 usermod -aG hostrender tester
@@ -44,7 +48,7 @@ for suite in $SUITES; do
         kwin-dxvk) script=test-kwin-dxvk.sh;;
         kwin-gl) script=test-kwin-gl.sh;;
     esac
-    runuser -u tester -- env HOME=/home/tester WIZ3D_TEST_ARCH="$WIZ3D_TEST_ARCH" WIZ3D_TEST_WINEDEBUG="$WIZ3D_TEST_WINEDEBUG" WIZ3D_TEST_SUPPORT="$WIZ3D_TEST_SUPPORT" ${WIZ3D_TEST_WINE:+PATH=/opt/wine-stereo/bin:$PATH} "$REPO/tools/proton/$script" "$OUT/$suite" > "$OUT/$suite.log" 2>&1 || { echo "FAIL: suite $suite"; status=1; }
+    runuser -u tester -- env HOME=/home/tester WIZ3D_TEST_ARCH="$WIZ3D_TEST_ARCH" WIZ3D_TEST_WINEDEBUG="$WIZ3D_TEST_WINEDEBUG" WIZ3D_TEST_SUPPORT="$WIZ3D_TEST_SUPPORT" WIZ3D_TEST_GLMODE="${WIZ3D_TEST_GLMODE:-}" ${WIZ3D_TEST_WINE:+PATH=/opt/wine-stereo/bin:$PATH} "$REPO/tools/proton/$script" "$OUT/$suite" > "$OUT/$suite.log" 2>&1 || { echo "FAIL: suite $suite"; status=1; }
     tail -20 "$OUT/$suite.log"
 done
 ( cd /home/tester/games && find . -type f | sort | xargs sha256sum ) > "$OUT/games-after-tests.sha256"
