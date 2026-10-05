@@ -4,7 +4,8 @@
 # the suites as an ordinary user, remove the package, check no game file moved.
 # The base image is made by pkg/setup-base.sh equivalents: see REPORT.md.
 # Usage: test-package.sh DEB-DIRECTORY NEW-EVIDENCE-DIRECTORY [SUITE...]
-#   suites: kwin frames (default); kwin-dxvk is run only on request
+#   suites: kwin frames (default); kwin-dxvk, kwin-gl on request (WIZ3D_TEST_WINE: patched Wine install,
+#   WIZ3D_TEST_CAPTURE: folder with KWin's kwin-capture helper)
 set -euo pipefail
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 DEBS=$(realpath "${1:?Usage: test-package.sh DEB-DIRECTORY NEW-EVIDENCE-DIRECTORY [SUITE...]}")
@@ -15,7 +16,7 @@ SUITES=${*:-kwin frames}
 mkdir -p "$OUT"
 CID=$(docker run -d --cpus 4 --cap-add SYS_NICE --device /dev/dri/renderD128 --group-add 125 \
     -v /K3D/temp/sparky-os/repo:/repo:ro -v "$DEBS:/deb:ro" -v "$REPO:$REPO:ro" -v "$OUT:$OUT" \
-    -e REPO="$REPO" -e OUT="$OUT" -e SUITES="$SUITES" -e TESTUID="$(id -u)" -e WIZ3D_TEST_ARCH="${WIZ3D_TEST_ARCH:-x64}" -e WIZ3D_TEST_SUPPORT="${WIZ3D_TEST_SUPPORT:-2}" ${WIZ3D_TEST_WINE:+-v "$WIZ3D_TEST_WINE:/opt/wine-stereo:ro" -e WIZ3D_TEST_WINE=1} wiz3d-pkgtest-base bash -c '
+    -e REPO="$REPO" -e OUT="$OUT" -e SUITES="$SUITES" -e TESTUID="$(id -u)" -e WIZ3D_TEST_ARCH="${WIZ3D_TEST_ARCH:-x64}" -e WIZ3D_TEST_SUPPORT="${WIZ3D_TEST_SUPPORT:-2}" ${WIZ3D_TEST_WINE:+-v "$WIZ3D_TEST_WINE:/opt/wine-stereo:ro" -e WIZ3D_TEST_WINE=1} ${WIZ3D_TEST_CAPTURE:+-v "$WIZ3D_TEST_CAPTURE:/opt/wiz3d-capture:ro"} wiz3d-pkgtest-base bash -c '
 set -u
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -39,6 +40,7 @@ for suite in $SUITES; do
         kwin) script=test-kwin.sh;;
         frames) script=test-installed.sh;;
         kwin-dxvk) script=test-kwin-dxvk.sh;;
+        kwin-gl) script=test-kwin-gl.sh;;
     esac
     runuser -u tester -- env HOME=/home/tester WIZ3D_TEST_ARCH="$WIZ3D_TEST_ARCH" WIZ3D_TEST_SUPPORT="$WIZ3D_TEST_SUPPORT" ${WIZ3D_TEST_WINE:+PATH=/opt/wine-stereo/bin:$PATH} "$REPO/tools/proton/$script" "$OUT/$suite" > "$OUT/$suite.log" 2>&1 || { echo "FAIL: suite $suite"; status=1; }
     tail -20 "$OUT/$suite.log"
