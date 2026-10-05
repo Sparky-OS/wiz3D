@@ -124,7 +124,9 @@ void SideBySideOutput::ModifyPresentParameters(IDirect3D9* pd3d, UINT nAdapter, 
 		GetWindowLong(window, GWL_EXSTYLE));
 	SetWindowPos(window, NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top,
 		SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-	SetPropW(window, kFullSideBySideWindow, (HANDLE)1);
+	// The mark tells that the client area holds both eyes.
+	if (!m_KWinDoubles)
+		SetPropW(window, kFullSideBySideWindow, (HANDLE)1);
 }
 
 UINT DX9Output::SideBySideOutput::GetOutputChainsNumber()
