@@ -11,8 +11,8 @@ D=$(realpath -m "${1:?Usage: test-kwin-gl.sh NEW-EVIDENCE-DIRECTORY}")
 mkdir -p "$D/game"
 XDG_RUNTIME_DIR=$(mktemp -d /tmp/wiz3d-rt.XXXXXX)
 export XDG_RUNTIME_DIR
-export LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=4 QT_QPA_PLATFORM=offscreen KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1
-export WINEPREFIX=$D/prefix WINEARCH=win64 WINEDEBUG=-all
+export LIBGL_DEBUG=verbose LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=4 QT_QPA_PLATFORM=offscreen KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1
+export WINEPREFIX=$D/prefix WINEARCH=win64 WINEDEBUG=${WIZ3D_TEST_WINEDEBUG:--all}
 if [ "${WIZ3D_TEST_ARCH:-x64}" = x86 ]; then CC=i686-w64-mingw32-gcc; else CC=x86_64-w64-mingw32-gcc; fi
 "$CC" -Wall -Wextra -O2 "$REPO/tools/run-wine/probe/glstereo.c" -o "$D/game/glstereo.exe" -lopengl32 -lgdi32 || exit 1
 dbus-run-session -- bash -s "$D" "$REPO" <<'TESTS'
