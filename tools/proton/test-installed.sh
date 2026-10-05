@@ -9,7 +9,7 @@ REPO=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=$(realpath -m "${1:?Usage: test-installed.sh NEW-EVIDENCE-DIRECTORY}")
 [ ! -e "$OUT" ] || { echo "Refusing to reuse $OUT" >&2; exit 2; }
 mkdir -p "$OUT"
-export WIZ3D_TEST_DLL_DIR=${WIZ3D_TEST_DLL_DIR:-/usr/lib/wiz3d/x64} WIZ3D_TEST_RUN=${WIZ3D_TEST_RUN:-/usr/bin/wiz3d-run}
+export WIZ3D_TEST_DLL_DIR=${WIZ3D_TEST_DLL_DIR:-/usr/lib/wiz3d/${WIZ3D_TEST_ARCH:-x64}} WIZ3D_TEST_RUN=${WIZ3D_TEST_RUN:-/usr/bin/wiz3d-run}
 export WIZ3D_TEST_SUPPORT=${WIZ3D_TEST_SUPPORT:-2}
 export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)}
 for CASE in normal low high reset reset-width disabled fullscreen swapped; do

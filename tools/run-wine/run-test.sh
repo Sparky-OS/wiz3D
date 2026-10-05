@@ -29,6 +29,10 @@ fi
 wineboot -u >"$D/wineboot.log" 2>&1
 wineserver -w
 cp /opt/dxvk/x64/d3d9.dll "$WINEPREFIX/drive_c/windows/system32/d3d9.dll"
+# A 32-bit game runs in the WoW64 prefix, with its own DXVK in syswow64.
+if [ "${WIZ3D_TEST_ARCH:-x64}" = x86 ]; then
+    cp /opt/dxvk/x32/d3d9.dll "$WINEPREFIX/drive_c/windows/syswow64/d3d9.dll"
+fi
 export WINEDLLOVERRIDES='d3d9=n;d3dx9_43=b'
 if [ "$MODE" != mono ]; then
     cp "$DLL_DIR/"*.dll "$D/game/"
@@ -52,7 +56,8 @@ PY
         cp "$DLL_DIR/wiz3D_Config.xml" "$D/game/wiz3D_Config.xml"
     fi
 fi
-x86_64-w64-mingw32-gcc -Wall -Wextra -O2 "$REPO/tools/run-wine/probe/probe.c" -o "$D/game/wiz3dprobe.exe" -ld3d9
+if [ "${WIZ3D_TEST_ARCH:-x64}" = x86 ]; then CC=i686-w64-mingw32-gcc; else CC=x86_64-w64-mingw32-gcc; fi
+"$CC" -Wall -Wextra -O2 "$REPO/tools/run-wine/probe/probe.c" -o "$D/game/wiz3dprobe.exe" -ld3d9
 cd "$D/game"
 COMMAND=(wine wiz3dprobe.exe)
 if [ "$LAUNCHER" != 0 ]; then
