@@ -33,6 +33,7 @@ Description: Stereo 3D for Direct3D 9 games on Wine and Proton, full side by sid
  screen uses.
  .
  The package ships the Windows proxy DLLs for 64-bit (/usr/lib/wiz3d/x64) and
- 32-bit (/usr/lib/wiz3d/x86) games, and wiz3d-run, the launcher that declares
- the window. Copy the matching tree into the game's folder and use
+ 32-bit (/usr/lib/wiz3d/x86) games, wiz3d-run, the launcher that declares
+ the window, and wiz3d-launch, which also puts wiz3D in a Wine prefix and takes
+ it out again. Copy the matching tree into the game's folder and use
  "wiz3d-run -- %command%" as the Steam launch option.

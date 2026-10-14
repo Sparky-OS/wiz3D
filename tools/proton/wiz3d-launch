@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: LGPL-2.1-or-later
+"""Run a Wine game in stereo from a prefix: wiz3d-launch [--disable-3d] -- wine game.exe
+
+Puts wiz3D in the game's prefix (WINEPREFIX) in front of DXVK, runs the game through wiz3d-run, which
+declares its window to KWin, and takes wiz3D out again when the game ends.  With WIZ3D_ENABLE_3D=0 or
+--disable-3d it leaves the prefix as DXVK alone has it and runs the game as it is."""
+import argparse
+import os
+import signal
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib' / 'wiz3d' / 'python'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiz3d_prefix
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, epilog='wiz3D writes its logs to WIZ3D_LOG_DIR '
+                                     '(default ~/.local/state/wiz3d), never into the prefix or the game folder.')
+    enable = parser.add_mutually_exclusive_group()
+    enable.add_argument('--enable-3d', dest='enabled', action='store_true', default=os.environ.get('WIZ3D_ENABLE_3D') != '0')
+    enable.add_argument('--disable-3d', dest='enabled', action='store_false', help='Run without wiz3D, as WIZ3D_ENABLE_3D=0 does')
+    parser.add_argument('command', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    command = args.command[1:] if args.command[:1] == ['--'] else args.command
+    prefix = os.environ.get('WINEPREFIX')
+    if not prefix or not command:
+        parser.error('a Wine game command is required after --, with WINEPREFIX set')
+    if not args.enabled:
+        wiz3d_prefix.off(prefix)
+        os.execvp(command[0], command)
+    try:
+        without_dxvk = wiz3d_prefix.on(prefix)
+    except (OSError, RuntimeError) as exc:
+        sys.exit('wiz3d-launch: %s' % exc)
+    for folder in without_dxvk:
+        print('wiz3d-launch: no DXVK in %s, so games of that kind run without stereo' % folder, file=sys.stderr)
+    log_dir = os.environ.get('WIZ3D_LOG_DIR') or str(Path(os.environ.get('XDG_STATE_HOME') or Path.home() / '.local' / 'state') / 'wiz3d')
+    if '\\' not in log_dir:
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
+        log_dir = 'Z:' + log_dir.replace('/', '\\')
+    os.environ['WIZ3D_LOG_DIR'] = log_dir
+    child = subprocess.Popen([os.environ.get('WIZ3D_RUN', 'wiz3d-run'), '--'] + command)
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, lambda signum, frame: child.send_signal(signum))
+    try:
+        status = child.wait()
+    finally:
+        wiz3d_prefix.off(prefix)
+    return status if status >= 0 else 128 - status
+
+
+if __name__ == '__main__':
+    sys.exit(main())

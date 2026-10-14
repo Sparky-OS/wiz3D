@@ -1,6 +1,8 @@
 debian/stage/x64 usr/lib/wiz3d
 debian/stage/x86 usr/lib/wiz3d
 tools/proton/wiz3d-run usr/bin
+tools/proton/wiz3d-launch usr/bin
+tools/proton/wiz3d_prefix.py usr/lib/wiz3d/python
 tools/proton/README.md usr/share/doc/wiz3d
 tools/proton/PACKAGING.md usr/share/doc/wiz3d
 tools/proton/VALIDATION.md usr/share/doc/wiz3d

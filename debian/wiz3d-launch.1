@@ -1,0 +1,37 @@
+.TH WIZ3D-LAUNCH 1 "October 2026" "wiz3d 0.3.1" "Sparky Stereo OS"
+.SH NAME
+wiz3d-launch \- start a Direct3D 9 Wine game with wiz3D stereo installed in its prefix
+.SH SYNOPSIS
+.B wiz3d-launch
+[\fB\-\-enable\-3d\fR | \fB\-\-disable\-3d\fR] \fB\-\-\fR \fIcommand\fR [\fIargument\fR ...]
+.SH DESCRIPTION
+For a Wine game started with WINEPREFIX set.
+Puts wiz3D in the prefix's system folders in front of DXVK (DXVK's d3d9.dll is kept as d3d9_real.dll, the rest are
+links into /usr/lib/wiz3d), runs \fIcommand\fR through
+.BR wiz3d-run (1),
+which declares the game's window to KWin as full side by side, left eye first, and takes wiz3D out again when the game ends.
+The prefix and the game's folder come out as they went in.
+wiz3D's logs and statistics go to WIZ3D_LOG_DIR, by default ~/.local/state/wiz3d.
+.PP
+It needs DXVK in the prefix for Direct3D 9 and says so when it is not there.
+.SH OPTIONS
+.TP
+.B \-\-enable\-3d
+Use wiz3D (default).
+.TP
+.B \-\-disable\-3d
+Take wiz3D out of the prefix, if an earlier run left it, and run \fIcommand\fR as it is.
+.SH ENVIRONMENT
+.TP
+WINEPREFIX
+The prefix to use (required).
+.TP
+WIZ3D_ENABLE_3D
+0 does what \fB\-\-disable\-3d\fR does.
+.TP
+WIZ3D_LOG_DIR
+The folder for wiz3D's logs and Statistic.xml.
+.SH EXIT STATUS
+The game's exit status.
+.SH AUTHOR
+Sparky Stereo OS, an edition of SparkyLinux, created by Pawe\(sl "pavroo" Pijanowski and Daniel Ramos (Capitain Jack).

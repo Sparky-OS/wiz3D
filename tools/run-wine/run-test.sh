@@ -37,6 +37,10 @@ fi
 export WINEDLLOVERRIDES='d3d9=n;d3dx9_43=b'
 # The folder the proxy chain goes in: the game's, or with WIZ3D_TEST_PREFIX_INSTALL=1 the prefix's system folder, where
 # DXVK's d3d9.dll moves to d3d9_real.dll and the proxy takes its name; wiz3D's logs then go to $D/logs.
+# With =2 the launcher (WIZ3D_TEST_RUN, wiz3d-launch) does the installing and the removing, with the packaged configuration,
+# and the prefix's system folders are compared before and after.
+snapshot() { (cd "$WINEPREFIX/drive_c/windows" && find system32 syswow64 \( -type f -o -type l \) | LC_ALL=C sort | while read -r f; do
+    if [ -L "$f" ]; then echo "L $f $(readlink "$f")"; else echo "F $f $(sha256sum < "$f")"; fi; done); }
 TARGET=$D/game
 LOGFILE=$D/game/wiz3D_proxy.log
 mkdir -p "$TARGET/OutputMethods"
@@ -50,7 +54,14 @@ if [ "$PREFIX_INSTALL" = 1 ]; then
     LOGFILE=$D/logs/wiz3D_proxy.log
     export WIZ3D_LOG_DIR="Z:$(echo "$D/logs" | tr / '\\')"
 fi
-if [ "$MODE" != mono ]; then
+if [ "$PREFIX_INSTALL" = 2 ]; then
+    mkdir -p "$D/logs"
+    rmdir "$D/game/OutputMethods"
+    LOGFILE=$D/logs/wiz3D_proxy.log
+    export WIZ3D_LOG_DIR="Z:$(echo "$D/logs" | tr / '\\')"
+    snapshot > "$D/prefix-before.txt"
+fi
+if [ "$MODE" != mono ] && [ "$PREFIX_INSTALL" != 2 ]; then
     cp "$DLL_DIR/"*.dll "$TARGET/"
     cp "$DLL_DIR/OutputMethods/SideBySideOutput.dll" "$TARGET/OutputMethods/"
     python3 - "$DLL_DIR/wiz3D_Config.xml" "$TARGET/wiz3D_Config.xml" "$SEPARATION" "$MODE" <<'PY'
@@ -116,7 +127,12 @@ if [ "$MODE" != mono ]; then
     grep -q 'Routing through WRAPPER' "$LOGFILE"
     grep -q 'SideBySideOutput.dll.*native' "$D/probe.log"
 fi
-if [ "$PREFIX_INSTALL" = 1 ] && [ "$MODE" != mono ]; then
+if [ "$PREFIX_INSTALL" = 2 ]; then
+    snapshot > "$D/prefix-after.txt"
+    cmp "$D/prefix-before.txt" "$D/prefix-after.txt"
+    echo "PASS: the prefix's system folders are byte for byte as they were after the launcher took wiz3D out"
+fi
+if [ "$PREFIX_INSTALL" != 0 ] && [ "$MODE" != mono ]; then
     # The real Direct3D 9 is the one under its new name, and nothing of wiz3D's was written into the game folder or the prefix.
     grep -q 'Loaded .*d3d9_real.dll' "$D/probe.log"
     [ -s "$D/logs/wiz3D_proxy.log" ] && [ -d "$D/logs/Logs" ]
