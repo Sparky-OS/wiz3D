@@ -138,6 +138,13 @@ BOOL GetD3D9DllFullPath(TCHAR dllFullPath[MAX_PATH])
 	}
 
 	int err = _stprintf_s(dllFullPath, MAX_PATH, L"%s\\%s", path, name);
+	if (!_tcscmp(name, _T("d3d9.dll")))
+	{
+		// A proxy installed as the system's d3d9.dll has the real one beside it as d3d9_real.dll.
+		TCHAR realPath[MAX_PATH];
+		if (_stprintf_s(realPath, MAX_PATH, L"%s\\d3d9_real.dll", path) >= 0 && PathFileExists(realPath))
+			return _tcscpy_s(dllFullPath, MAX_PATH, realPath) == 0;
+	}
 #ifndef FINAL_RELEASE
 	if(!PathFileExists(dllFullPath))
 #ifndef WIN64

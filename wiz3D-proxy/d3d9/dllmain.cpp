@@ -377,7 +377,13 @@ static BOOL LoadRealD3D9(void)
 
     WCHAR sysDir[MAX_PATH];
     GetSystemDirectoryW(sysDir, MAX_PATH);
-    lstrcatW(sysDir, L"\\d3d9.dll");
+    lstrcatW(sysDir, L"\\d3d9_real.dll");
+    if (GetFileAttributesW(sysDir) == INVALID_FILE_ATTRIBUTES)
+    {
+        // Normal case: this proxy sits in the game folder, the real one is the system's.
+        GetSystemDirectoryW(sysDir, MAX_PATH);
+        lstrcatW(sysDir, L"\\d3d9.dll");
+    }
 
     g_hRealD3D9 = LoadLibraryW(sysDir);
     if (!g_hRealD3D9)
