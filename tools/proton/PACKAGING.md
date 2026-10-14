@@ -20,8 +20,9 @@ Removal: remove that launch option and only the files installed for wiz3D,
 restoring any prior DLL/configuration backups. The launcher never installs or
 rewrites game files. No root privilege is needed for per-game opt-in.
 
-Runtime dependencies: Python 3, python3-xlib, libX11, the shared
-`libstereo-declare.so.1` (ABI 1), and KWin with X11 declaration support version 2.
+Runtime dependencies: Python 3, the shared `stereo_declare` module (package
+python3-stereo-declare, from the libstereo-declare source: it brings python3-xlib
+and `libstereo-declare.so.1`), and KWin with X11 declaration support version 2.
 Display settings additionally needs `kcmshell6` and `kcm_kscreen`. Use the
 edition's shared helper package rather than vendoring a second declaration
 implementation. Final Debian package names for that new library belong to the

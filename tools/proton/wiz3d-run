@@ -2,129 +2,15 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 """Launch a DX9 game and declare only the packed window reported by wiz3D."""
 import argparse
-import ctypes
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
-
-def descendants(root, known):
-    parents = {}
-    for entry in Path('/proc').iterdir():
-        if entry.name.isdigit():
-            try:
-                text = (entry / 'stat').read_text()
-                parents[int(entry.name)] = int(text[text.rfind(')') + 2:].split()[1])
-            except (OSError, ValueError, IndexError):
-                pass
-    # Retain known Wine children after wineserver reparents them.
-    known.intersection_update(parents)
-    known.add(root)
-    while True:
-        added = {pid for pid, parent in parents.items() if parent in known} - known
-        if not added:
-            return known
-        known.update(added)
-
-
-def window_state(path):
-    try:
-        lines = path.read_text(encoding='utf-8').splitlines()
-        magic, w, h, xid = lines[0].split()
-        w, h, xid = int(w), int(h), int(xid)
-        if magic == 'wiz3d-full-sbs-v1' and w > 0 and w % 2 == 0 and h > 0 and 0 <= xid <= 0xffffffff and len(lines) == 2:
-            return w, h, lines[1].casefold(), xid
-    except (OSError, ValueError, IndexError, UnicodeError):
-        pass
-    return None
-
-
-class Declaration:
-    def __init__(self):
-        from Xlib import display
-        self.x = display.Display()
-        self.xlib = ctypes.CDLL('libX11.so.6')
-        self.xlib.XOpenDisplay.argtypes = [ctypes.c_char_p]
-        self.xlib.XOpenDisplay.restype = ctypes.c_void_p
-        self.xlib.XCloseDisplay.argtypes = [ctypes.c_void_p]
-        self.xlib.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
-        # A client can disappear between discovery and the declaration request.
-        self.error = 0
-        handler_type = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
-        def on_error(display, event):
-            self.error = 1
-            return 0
-        self.handler = handler_type(on_error)
-        self.xlib.XSetErrorHandler.argtypes = [ctypes.c_void_p]
-        self.xlib.XSetErrorHandler.restype = ctypes.c_void_p
-        self.previous_handler = self.xlib.XSetErrorHandler(ctypes.cast(self.handler, ctypes.c_void_p))
-        self.native = self.xlib.XOpenDisplay(None)
-        if not self.native:
-            raise RuntimeError('Cannot open X11 display')
-        self.lib = ctypes.CDLL('libstereo-declare.so.1')
-        self.lib.stereo_supported_x11.argtypes = [ctypes.c_void_p]
-        self.lib.stereo_declare_x11.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
-        self.lib.stereo_remove_x11.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
-        self.version = self.lib.stereo_supported_x11(self.native)
-        if self.version < 2:
-            self.close()
-            raise RuntimeError('KWin stereo declaration support version 2 is required')
-        self.pid_atom = self.x.intern_atom('_NET_WM_PID')
-        self.active = set()
-        self.declared_any = False
-
-    def candidates(self, state, pids, steam_class):
-        from Xlib import X, Xatom, error
-        if state is None:
-            return set()
-        width, height, exe, xid = state
-        result = set()
-        stack = [self.x.create_resource_object('window', xid)] if xid else [self.x.screen().root]
-        while stack:
-            window = stack.pop()
-            try:
-                if not xid:
-                    stack.extend(window.query_tree().children)
-                geom = window.get_geometry()
-                if (not xid and (geom.width, geom.height) != (width, height)) or window.get_attributes().map_state != X.IsViewable:
-                    continue
-                classes = {s.casefold() for s in (window.get_wm_class() or ())}
-                pid = window.get_full_property(self.pid_atom, Xatom.CARDINAL)
-                child = pid is not None and pid.format == 32 and len(pid.value) == 1 and int(pid.value[0]) in pids
-                steam = bool(steam_class and steam_class.casefold() in classes)
-                identity = window.id == xid if xid else (child or steam)
-                if identity and (exe in classes or steam):
-                    result.add(window.id)
-            except error.XError:
-                continue
-        # Without a native XID, ambiguous same-game windows stay undeclared.
-        return result if len(result) == 1 else set()
-
-    def update(self, wanted):
-        for wid in self.active - wanted:
-            self.lib.stereo_remove_x11(self.native, wid)
-        self.xlib.XSync(self.native, 0)
-        self.active.intersection_update(wanted)
-        for wid in wanted - self.active:
-            self.error = 0
-            result = self.lib.stereo_declare_x11(self.native, wid, 3, 3, 3)
-            self.xlib.XSync(self.native, 0)
-            if result == 0 and not self.error:
-                self.active.add(wid)
-                self.declared_any = True
-                print(f'wiz3d-run: declared 0x{wid:x}: full SBS, game/gl', flush=True)
-        self.xlib.XSync(self.native, 0)
-
-    def close(self):
-        if hasattr(self, 'active'):
-            self.update(set())
-        self.xlib.XCloseDisplay(self.native)
-        self.xlib.XSetErrorHandler(self.previous_handler)
-        self.x.close()
+from stereo_declare import Declaration, descendants, window_state
 
 
 def main():
@@ -143,7 +29,7 @@ def main():
         command = command[1:]
     if not command:
         parser.error('a game command is required after --')
-    declaration = Declaration() if args.enabled else None
+    declaration = Declaration(on_declare=lambda wid: print(f'wiz3d-run: declared 0x{wid:x}: full SBS, game/gl', flush=True)) if args.enabled else None
     env = os.environ.copy()
     env['WIZ3D_ENABLE_3D'] = '1' if args.enabled else '0'
     if declaration and declaration.version >= 3:

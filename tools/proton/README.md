@@ -29,8 +29,9 @@ loads the wrapper beside itself; the wrapper loads system32's Direct3D, which
 must be DXVK. Proton normally supplies DXVK and builtin D3DX9. A manual Wine
 prefix needs both. The optional Leia SDK and NVAPI are not used by this build.
 
-Install `wiz3d-run` on PATH, Python 3 with python-xlib, and the shared
-`libstereo-declare.so.1` from plasma-wayland-protocols/stereo-declare. KWin must
+Install `wiz3d-run` on PATH and the shared `stereo_declare` Python module (the
+package python3-stereo-declare, from github.com/Sparky-OS/libstereo-declare: it
+needs python-xlib and `libstereo-declare.so.1`). KWin must
 advertise declaration version 2 or newer on this X11/Xwayland display. Use this Steam
 launch option:
 
