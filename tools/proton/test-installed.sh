@@ -12,9 +12,9 @@ mkdir -p "$OUT"
 export WIZ3D_TEST_DLL_DIR=${WIZ3D_TEST_DLL_DIR:-/usr/lib/wiz3d/${WIZ3D_TEST_ARCH:-x64}} WIZ3D_TEST_RUN=${WIZ3D_TEST_RUN:-/usr/bin/wiz3d-run}
 export WIZ3D_TEST_SUPPORT=${WIZ3D_TEST_SUPPORT:-2}
 export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)}
-for CASE in normal low high reset reset-width disabled fullscreen swapped; do
+for CASE in normal low high reset reset-width disabled fullscreen swapped prefix; do
     export WIZ3D_TEST_LAUNCHER=1
-    unset PROBE_WIDTH PROBE_HEIGHT PROBE_RESET PROBE_RESET_AUTO PROBE_RESET_WIDTH_ONLY PROBE_FULLSCREEN WIZ3D_TEST_SWAP
+    unset PROBE_WIDTH PROBE_HEIGHT PROBE_RESET PROBE_RESET_AUTO PROBE_RESET_WIDTH_ONLY PROBE_FULLSCREEN WIZ3D_TEST_SWAP WIZ3D_TEST_PREFIX_INSTALL
     case $CASE in
         low) export PROBE_WIDTH=400 PROBE_HEIGHT=300;;
         high) export PROBE_WIDTH=1200 PROBE_HEIGHT=900;;
@@ -23,6 +23,7 @@ for CASE in normal low high reset reset-width disabled fullscreen swapped; do
         disabled) export WIZ3D_TEST_LAUNCHER=2;;
         fullscreen) export PROBE_FULLSCREEN=1;;
         swapped) export WIZ3D_TEST_SWAP=1;;
+        prefix) export WIZ3D_TEST_PREFIX_INSTALL=1;;
     esac
     echo "=== $CASE ==="
     bash "$REPO/tools/run-wine/run-test.sh" "$REPO" "$OUT/$CASE" full .16 2>&1 | tee "$OUT/$CASE.log"

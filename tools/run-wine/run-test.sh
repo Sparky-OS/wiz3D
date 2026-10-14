@@ -10,7 +10,8 @@ LAUNCHER=${WIZ3D_TEST_LAUNCHER:-0}
 LAUNCHER_BIN=${WIZ3D_TEST_RUN:-$REPO/tools/proton/wiz3d-run}
 if [ "$MODE" = full ]; then export PROBE_FULL_MODE=1; fi
 [ ! -e "$D" ] || { echo "Refusing to reuse evidence directory: $D" >&2; exit 2; }
-mkdir -p "$D/game/OutputMethods"
+PREFIX_INSTALL=${WIZ3D_TEST_PREFIX_INSTALL:-0}
+mkdir -p "$D/game"
 export WINEPREFIX=$D/prefix WINEARCH=win64 WINEDEBUG=+loaddll
 export DISPLAY=${WIZ3D_TEST_DISPLAY:-:99} LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=4
 export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}
@@ -34,10 +35,25 @@ if [ "${WIZ3D_TEST_ARCH:-x64}" = x86 ]; then
     cp /opt/dxvk/x32/d3d9.dll "$WINEPREFIX/drive_c/windows/syswow64/d3d9.dll"
 fi
 export WINEDLLOVERRIDES='d3d9=n;d3dx9_43=b'
+# The folder the proxy chain goes in: the game's, or with WIZ3D_TEST_PREFIX_INSTALL=1 the prefix's system folder, where
+# DXVK's d3d9.dll moves to d3d9_real.dll and the proxy takes its name; wiz3D's logs then go to $D/logs.
+TARGET=$D/game
+LOGFILE=$D/game/wiz3D_proxy.log
+mkdir -p "$TARGET/OutputMethods"
+if [ "$PREFIX_INSTALL" = 1 ]; then
+    SYS=$WINEPREFIX/drive_c/windows/system32
+    [ "${WIZ3D_TEST_ARCH:-x64}" = x86 ] && SYS=$WINEPREFIX/drive_c/windows/syswow64
+    mv "$SYS/d3d9.dll" "$SYS/d3d9_real.dll"
+    mkdir -p "$SYS/OutputMethods" "$D/logs"
+    rmdir "$D/game/OutputMethods"
+    TARGET=$SYS
+    LOGFILE=$D/logs/wiz3D_proxy.log
+    export WIZ3D_LOG_DIR="Z:$(echo "$D/logs" | tr / '\\')"
+fi
 if [ "$MODE" != mono ]; then
-    cp "$DLL_DIR/"*.dll "$D/game/"
-    cp "$DLL_DIR/OutputMethods/SideBySideOutput.dll" "$D/game/OutputMethods/"
-    python3 - "$DLL_DIR/wiz3D_Config.xml" "$D/game/wiz3D_Config.xml" "$SEPARATION" "$MODE" <<'PY'
+    cp "$DLL_DIR/"*.dll "$TARGET/"
+    cp "$DLL_DIR/OutputMethods/SideBySideOutput.dll" "$TARGET/OutputMethods/"
+    python3 - "$DLL_DIR/wiz3D_Config.xml" "$TARGET/wiz3D_Config.xml" "$SEPARATION" "$MODE" <<'PY'
 import os
 import sys
 import xml.etree.ElementTree as E
@@ -53,7 +69,7 @@ for node in tree.iter():
 tree.write(sys.argv[2], encoding='utf-8', xml_declaration=True)
 PY
     if [ "${WIZ3D_TEST_STAGED_CONFIG:-0}" = 1 ]; then
-        cp "$DLL_DIR/wiz3D_Config.xml" "$D/game/wiz3D_Config.xml"
+        cp "$DLL_DIR/wiz3D_Config.xml" "$TARGET/wiz3D_Config.xml"
     fi
 fi
 if [ "${WIZ3D_TEST_ARCH:-x64}" = x86 ]; then CC=i686-w64-mingw32-gcc; else CC=x86_64-w64-mingw32-gcc; fi
@@ -97,8 +113,16 @@ grep -q 'no such atom' "$D/mirroring.txt"
 grep -q 'DXVK: v2.7.1' "$D/probe.log"
 grep -q 'llvmpipe' "$D/probe.log"
 if [ "$MODE" != mono ]; then
-    grep -q 'Routing through WRAPPER' wiz3D_proxy.log
+    grep -q 'Routing through WRAPPER' "$LOGFILE"
     grep -q 'SideBySideOutput.dll.*native' "$D/probe.log"
+fi
+if [ "$PREFIX_INSTALL" = 1 ] && [ "$MODE" != mono ]; then
+    # The real Direct3D 9 is the one under its new name, and nothing of wiz3D's was written into the game folder or the prefix.
+    grep -q 'Loaded .*d3d9_real.dll' "$D/probe.log"
+    [ -s "$D/logs/wiz3D_proxy.log" ] && [ -d "$D/logs/Logs" ]
+    ! find "$D/game" "$WINEPREFIX/drive_c/windows" \( -name wiz3D_proxy.log -o -name Statistic.xml -o -name Logs \) | grep .
+    ! ls -A "$D/game" | grep -v -x -e wiz3dprobe.exe -e stop.flag | grep .
+    echo "PASS: wiz3D installed in the prefix as d3d9.dll beside d3d9_real.dll; the game folder and the prefix hold none of its logs"
 fi
 if [ "$LAUNCHER" = 2 ]; then
     ! grep -q "^_KDE_NET_WM_STEREO_CONTENT(CARDINAL)" "$D/xprop.txt"
