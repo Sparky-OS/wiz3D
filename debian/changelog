@@ -1,3 +1,15 @@
+wiz3d (0.3.1+stereo3d4) testing; urgency=medium
+
+  * wiz3d-run uses the shared stereo_declare module (python3-stereo-declare
+    1.2.0, from libstereo-declare) instead of carrying its own copy of the
+    declaration; what it does and prints is unchanged.
+  * New: wiz3d-launch, which puts wiz3D in a Wine prefix beside DXVK, runs
+    the game through wiz3d-run and takes wiz3D out again (WIZ3D_LOG_DIR keeps
+    wiz3D's logs out of the prefix and the game folder).
+  * The fork is now github.com/Sparky-OS/wiz3D (Vcs fields).
+
+ -- Daniel Ramos (Capitain Jack) <Capitain_Jack@yahoo.com>  Wed, 14 Oct 2026 21:00:00 -0300
+
 wiz3d (0.3.1+stereo3d3) testing; urgency=medium
 
   * The proxy and the wrapper take the real Direct3D 9 from d3d9_real.dll

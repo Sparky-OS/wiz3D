@@ -15,16 +15,14 @@ Build-Depends: ca-certificates,
 Standards-Version: 4.7.2
 Rules-Requires-Root: no
 Homepage: https://sparkylinux.org
-Vcs-Git: https://github.com/danielcamposramos/wiz3D.git
-Vcs-Browser: https://github.com/danielcamposramos/wiz3D
+Vcs-Git: https://github.com/Sparky-OS/wiz3D.git
+Vcs-Browser: https://github.com/Sparky-OS/wiz3D
 
 Package: wiz3d
 Architecture: amd64
 Depends: kwin-wayland (>= 4:6.7.4-2+stereo3d13),
-         libstereo-declare1,
-         libx11-6,
          python3,
-         python3-xlib,
+         python3-stereo-declare (>= 1.2.0),
          ${misc:Depends}
 Recommends: kscreen
 Suggests: wine
