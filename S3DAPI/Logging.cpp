@@ -7,7 +7,10 @@
 
 void InitializeLogging()
 {
-	_tcscpy(gInfo.LogFileDirectory, gInfo.DriverDirectory);
+	// WIZ3D_LOG_DIR moves the Logs folder out of the driver directory
+	DWORD n = GetEnvironmentVariable(_T("WIZ3D_LOG_DIR"), gInfo.LogFileDirectory, MAX_PATH - 64);
+	if (n == 0 || n >= MAX_PATH - 64)
+		_tcscpy(gInfo.LogFileDirectory, gInfo.DriverDirectory);
 	PathAppend(gInfo.LogFileDirectory, _T("Logs"));
 	CreateDirectory(gInfo.LogFileDirectory, 0);
 	PathAppend(gInfo.LogFileDirectory, gInfo.ApplicationName);

@@ -24,9 +24,18 @@ static void LogOpen(void)
 {
     if (g_logFile) return;
     WCHAR dir[MAX_PATH];
-    GetModuleFileNameW(NULL, dir, MAX_PATH);  // game exe path
-    WCHAR* pSlash = wcsrchr(dir, L'\\');
-    if (pSlash) *(pSlash + 1) = L'\0';
+    // WIZ3D_LOG_DIR moves the log out of the game folder
+    DWORD n = GetEnvironmentVariableW(L"WIZ3D_LOG_DIR", dir, MAX_PATH - 20);
+    if (n > 0 && n < MAX_PATH - 20)
+    {
+        if (dir[n - 1] != L'\\') lstrcatW(dir, L"\\");
+    }
+    else
+    {
+        GetModuleFileNameW(NULL, dir, MAX_PATH);  // game exe path
+        WCHAR* pSlash = wcsrchr(dir, L'\\');
+        if (pSlash) *(pSlash + 1) = L'\0';
+    }
     lstrcatW(dir, L"wiz3D_proxy.log");
     g_logFile = _wfopen(dir, L"a");  // append: shared with d3d10/d3d11/dxgi proxies
 }

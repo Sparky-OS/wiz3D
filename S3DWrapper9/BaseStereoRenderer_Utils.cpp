@@ -463,7 +463,9 @@ void CBaseStereoRenderer::WriteStatistic()
 {
 	TCHAR szPath[MAX_PATH];
 	UpdateStatisticData();
-	if (iz3d::resources::GetAllUsersDirectory( szPath ))
+	// WIZ3D_LOG_DIR moves Statistic.xml out of the driver directory
+	DWORD nLogDir = GetEnvironmentVariable(_T("WIZ3D_LOG_DIR"), szPath, MAX_PATH - 20);
+	if ((nLogDir > 0 && nLogDir < MAX_PATH - 20) || iz3d::resources::GetAllUsersDirectory( szPath ))
 	{
 		PathAppend(szPath, _T("Statistic.xml") );
 
