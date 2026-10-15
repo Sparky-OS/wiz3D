@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # SPDX-License-Identifier: LGPL-2.1-or-later
 """Run a Wine game in stereo from a prefix: wiz3d-launch [--disable-3d] -- wine game.exe
 
