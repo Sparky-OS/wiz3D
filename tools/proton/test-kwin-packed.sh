@@ -17,6 +17,7 @@ export XDG_RUNTIME_DIR
 export LIBGL_ALWAYS_SOFTWARE=1 LP_NUM_THREADS=4 QT_QPA_PLATFORM=offscreen
 export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)}
 export WINEDEBUG=${WIZ3D_TEST_WINEDEBUG:--all} WIZ3D_WINETRICKS=0
+export WIZ3D_TEST_WINEDEBUG
 dpkg-query -W -f='${Package} ${Version}\n' mesa-vulkan-drivers kwin-wayland dxvk-wine64 dxvk-wine32 wine64 wiz3d 2>/dev/null > "$OUT/versions.txt"
 cat "$OUT/versions.txt"
 x86_64-w64-mingw32-gcc -Wall -Wextra -O2 "$REPO/tools/run-wine/probe-packed/probe_packed.c" -o "$OUT/probe_packed.exe" -ld3d9 || exit 1
@@ -38,7 +39,7 @@ run_case() {  # run_case NAME PACKING RIGHT-FIRST(0/1) LAUNCH-ARGS... ; env PROB
     mkdir -p "$D/game"
     cp "$OUT/probe_packed.exe" "$D/game/"
     echo "=== $name ==="
-    ( cd "$D/game" && PROBE_PACKING=$packing ${right:+PROBE_RIGHT_FIRST=1} timeout 90 "$LAUNCH" "$@" -- wine probe_packed.exe > "$D/probe.log" 2>&1 ) &
+    ( cd "$D/game" && env PROBE_PACKING=$packing ${right:+PROBE_RIGHT_FIRST=1} timeout 90 "$LAUNCH" "$@" -- wine probe_packed.exe > "$D/probe.log" 2>&1 ) &
     local pid=$!
     for i in $(seq 1 60); do grep -q 'PROBE: ready' "$D/probe.log" && break; kill -0 $pid 2>/dev/null || break; sleep 1; done
     grep -q 'PROBE: ready' "$D/probe.log" || { echo "FAIL: $name: the probe did not get ready"; tail -5 "$D/probe.log"; touch "$D/game/stop.flag"; wait $pid; return 1; }
@@ -46,6 +47,7 @@ run_case() {  # run_case NAME PACKING RIGHT-FIRST(0/1) LAUNCH-ARGS... ; env PROB
     local wid
     wid=$(xwininfo -root -tree | awk '/wiz3dpacked-x/ {print $1; exit}')
     xprop -id "$wid" _KDE_NET_WM_STEREO_CONTENT > "$D/declaration.txt" 2>&1
+    xwininfo -id "$wid" -tree > "$D/window.txt" 2>&1
     xwd -id "$wid" -silent -out "$D/frame.xwd"
     touch "$D/game/stop.flag"
     wait $pid
@@ -60,14 +62,15 @@ check() {  # check NAME ARGS... -> PASS/FAIL line
         echo "FAIL: $name: $(tail -1 "$OUT/$name/measurements.txt")"; status=1
     fi
 }
-for packing in sideBySide topAndBottom rows columns checkerboard frameSequential; do
+PACKINGS=${WIZ3D_TEST_PACKINGS:-sideBySide topAndBottom rows columns checkerboard frameSequential}
+for packing in $PACKINGS; do
     run_case "$packing" "$packing" "" --native-stereo "$packing"
     grep -q '^_KDE_NET_WM_STEREO_CONTENT(CARDINAL) = 3$' "$OUT/$packing/declaration.txt" || { echo "FAIL: $packing: not declared"; status=1; }
     check "$packing"
     run_case "$packing-right-first" "$packing" 1 --native-stereo "$packing" --right-eye-first
     check "$packing-right-first"
 done
-for packing in anaglyphRedCyan anaglyphGreenMagenta anaglyphAmberBlue; do
+for packing in ${WIZ3D_TEST_ANAGLYPHS-anaglyphRedCyan anaglyphGreenMagenta anaglyphAmberBlue}; do
     run_case "$packing" "$packing" "" --native-stereo "$packing"
     check "$packing" --anaglyph
 done
