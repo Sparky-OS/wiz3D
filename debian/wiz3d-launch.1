@@ -12,6 +12,9 @@ links into /usr/lib/wiz3d), runs \fIcommand\fR through
 which declares the game's window to KWin as full side by side, left eye first, and takes wiz3D out again when the game ends.
 The prefix and the game's folder come out as they went in.
 wiz3D's logs and statistics go to WIZ3D_LOG_DIR, by default ~/.local/state/wiz3d.
+Paths handed to the Windows side are named the way Wine names them (a drive of the prefix, or \\\\?\\unix\\...),
+so a prefix without the Z: drive works too.
+A 32-bit prefix (WINEARCH=win32) gets the x86 tree in its system32; a 64-bit prefix gets x64 in system32 and x86 in syswow64.
 .PP
 It needs DXVK in the prefix for Direct3D 9 and says so when it is not there.
 .SH OPTIONS

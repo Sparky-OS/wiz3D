@@ -41,7 +41,7 @@ def main():
     log_dir = os.environ.get('WIZ3D_LOG_DIR') or str(Path(os.environ.get('XDG_STATE_HOME') or Path.home() / '.local' / 'state') / 'wiz3d')
     if '\\' not in log_dir:
         Path(log_dir).mkdir(parents=True, exist_ok=True)
-        log_dir = 'Z:' + log_dir.replace('/', '\\')
+        log_dir = wiz3d_prefix.windows_path(log_dir, prefix)
     os.environ['WIZ3D_LOG_DIR'] = log_dir
     child = subprocess.Popen([os.environ.get('WIZ3D_RUN', 'wiz3d-run'), '--'] + command)
     for sig in (signal.SIGTERM, signal.SIGINT):

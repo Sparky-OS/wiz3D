@@ -12,6 +12,10 @@ from pathlib import Path
 
 from stereo_declare import Declaration, descendants, window_state
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib' / 'wiz3d' / 'python'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiz3d_prefix
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, epilog="Render resolution per eye is the game’s video resolution. Set it in the game; KWin scales each complete eye to the window or screen.")
@@ -38,7 +42,7 @@ def main():
     env['WINEDLLOVERRIDES'] = overrides + (';' if overrides else '') + 'd3d9=n,b'
     with tempfile.TemporaryDirectory(prefix='wiz3d-', dir=env.get('XDG_RUNTIME_DIR')) as temp:
         state = Path(temp) / 'window-state'
-        env['WIZ3D_STEREO_STATE'] = 'Z:' + str(state).replace('/', '\\')
+        env['WIZ3D_STEREO_STATE'] = wiz3d_prefix.windows_path(state)
         child = subprocess.Popen(command, env=env)
         def forward(sig, frame):
             if child.poll() is None:
@@ -65,7 +69,7 @@ def main():
             if declaration:
                 declaration.close()
         if declaration and not declaration.declared_any:
-            print('wiz3d-run: no full-SBS game window was declared; check the DLLs, config, and Wine Z: mapping', file=sys.stderr)
+            print('wiz3d-run: no full-SBS game window was declared; check the DLLs and the configuration (the plug-in never wrote %s)' % env['WIZ3D_STEREO_STATE'], file=sys.stderr)
             if child.returncode == 0:
                 return 1
         return child.returncode if child.returncode >= 0 else 128 - child.returncode

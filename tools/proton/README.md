@@ -70,8 +70,10 @@ or force arbitrary render-target sizes into an unmodified game engine.
 
 The DLL cannot call Xlib. It reports its packed render size, executable name,
 and `GetPropW(hwnd, L"__wine_x11_whole_window")` native window ID in a private
-per-launch file supplied by `WIZ3D_STEREO_STATE`. This uses Wine's Z: mapping;
-that mapping must exist. File replacement is atomic. Changed native IDs are
+per-launch file supplied by `WIZ3D_STEREO_STATE`. The launcher names that file
+the way Wine names a Unix path to Windows code: through a drive of the prefix
+when one holds it, else as `\\?\unix\...`, so the Z: drive is not needed
+(a sandboxed prefix has none). File replacement is atomic. Changed native IDs are
 reported on subsequent frames, and the file is removed when the output object
 is destroyed. No ELF executable is launched from Wine.
 
