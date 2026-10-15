@@ -1,3 +1,25 @@
+wiz3d (0.3.1+stereo3d6) testing; urgency=medium
+
+  * wiz3d-launch moves a 32-bit game that does not run in its 64-bit
+    prefix (on evidence: a 16-bit program by its header, Wine's own
+    words about its WoW64 mode in the output, or an end within 30 s with
+    a bad status) to a 32-bit prefix beside it, made then, says why, and
+    remembers the choice per game in ~/.local/state/wiz3d/prefixes.json
+    (WIZ3D_FALLBACK=0 or --no-fallback turns it off). Proven with
+    SimCity Classic's 16-bit setup, which wine32 runs and WoW64 does
+    not.
+  * A game that draws both eyes itself: wiz3d-launch --native-stereo
+    LAYOUT (the frame packings of H.264 Table D-8 and Matroska
+    StereoMode, and the anaglyphs) keeps wiz3D out, tells the system's
+    DXVK the packing (dxvk.stereoInput, dxvk 2.7.1-4+stereo3d3), which
+    unpacks it to full side by side, and wiz3d-run --native-stereo
+    declares the game's window. Depends on dxvk 2.7.1-4+stereo3d3.
+    Tests: test-launch.py (fallback and native cases), test-kwin-
+    packed.sh (every packing through the real KWin and DXVK, with the
+    control and a negative).
+
+ -- Daniel Ramos (Capitain Jack) <Capitain_Jack@yahoo.com>  Thu, 15 Oct 2026 15:11:12 -0300
+
 wiz3d (0.3.1+stereo3d5) testing; urgency=medium
 
   * wiz3d-launch makes a missing WINEPREFIX (WINEARCH's architecture, the
