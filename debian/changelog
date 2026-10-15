@@ -1,3 +1,21 @@
+wiz3d (0.3.1+stereo3d5) testing; urgency=medium
+
+  * wiz3d-launch makes a missing WINEPREFIX (WINEARCH's architecture, the
+    system's DXVK through dxvk-setup, Microsoft's d3dx9 and d3dcompiler_43
+    through winetricks when installed, the user folders inside the prefix,
+    winemenubuilder off, Z: kept) and runs the game in the folder of its .exe
+    (TrackMania Nations Forever quits with status 0 from any other folder).
+  * A 32-bit prefix (WINEARCH=win32) gets the x86 tree in its system32.
+  * Paths handed to wiz3D follow the prefix's drives or use Wine's
+    \\?\unix\ form, so a prefix without Z: works.
+  * wiz3d-run and wiz3d-launch run on /usr/bin/python3 (Debian's Python
+    policy; a conda environment first on PATH broke them).
+  * Depends on dxvk 2.7.1-4+stereo3d2 (dxvk-setup serves 32-bit prefixes);
+    recommends the edition's wine (the wrapper picks wine32 for a 32-bit
+    prefix) and winetricks.
+
+ -- Daniel Ramos (Capitain Jack) <Capitain_Jack@yahoo.com>  Thu, 15 Oct 2026 10:00:00 -0300
+
 wiz3d (0.3.1+stereo3d4) testing; urgency=medium
 
   * wiz3d-run uses the shared stereo_declare module (python3-stereo-declare

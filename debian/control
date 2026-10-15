@@ -20,12 +20,14 @@ Vcs-Browser: https://github.com/Sparky-OS/wiz3D
 
 Package: wiz3d
 Architecture: amd64
-Depends: kwin-wayland (>= 4:6.7.4-2+stereo3d13),
+Depends: dxvk (>= 2.7.1-4+stereo3d2),
+         kwin-wayland (>= 4:6.7.4-2+stereo3d13),
          python3,
          python3-stereo-declare (>= 1.2.0),
          ${misc:Depends}
-Recommends: kscreen
-Suggests: wine
+Recommends: kscreen,
+            wine (>= 10.0~repack-12+stereo3d2),
+            winetricks
 Description: Stereo 3D for Direct3D 9 games on Wine and Proton, full side by side
  wiz3D, the stereo wrapper from the iZ3D driver, renders a Direct3D 9 game
  once per eye and hands KWin one format: full side by side, left eye first,
@@ -34,6 +36,8 @@ Description: Stereo 3D for Direct3D 9 games on Wine and Proton, full side by sid
  .
  The package ships the Windows proxy DLLs for 64-bit (/usr/lib/wiz3d/x64) and
  32-bit (/usr/lib/wiz3d/x86) games, wiz3d-run, the launcher that declares
- the window, and wiz3d-launch, which also puts wiz3D in a Wine prefix and takes
- it out again. Copy the matching tree into the game's folder and use
- "wiz3d-run -- %command%" as the Steam launch option.
+ the window, and wiz3d-launch, which makes a game's Wine prefix when it does
+ not exist (DXVK, Microsoft's d3dx9 through winetricks, the user folders
+ inside the prefix), puts wiz3D in it in front of DXVK, runs the game in its
+ own folder and takes wiz3D out again. For Steam, use "wiz3d-run -- %command%"
+ as the launch option with the matching tree copied into the game's folder.
