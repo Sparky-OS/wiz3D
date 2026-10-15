@@ -4,7 +4,10 @@
 
 Puts wiz3D in the game's prefix (WINEPREFIX) in front of DXVK, runs the game through wiz3d-run, which
 declares its window to KWin, and takes wiz3D out again when the game ends.  With WIZ3D_ENABLE_3D=0 or
---disable-3d it leaves the prefix as DXVK alone has it and runs the game as it is."""
+--disable-3d it leaves the prefix as DXVK alone has it and runs the game as it is.  A prefix that does not
+exist yet is made first: WINEARCH's architecture (win64 by default), DXVK, the user folders inside the
+prefix, no menu entries; the same command installs a game and then plays it.  The game runs in the folder
+of its .exe when the command names one by path."""
 import argparse
 import os
 import signal
@@ -29,6 +32,16 @@ def main():
     prefix = os.environ.get('WINEPREFIX')
     if not prefix or not command:
         parser.error('a Wine game command is required after --, with WINEPREFIX set')
+    if not os.path.isfile(os.path.join(prefix, 'system.reg')):
+        try:
+            wiz3d_prefix.create(prefix)
+        except (OSError, RuntimeError) as exc:
+            sys.exit('wiz3d-launch: cannot make the prefix: %s' % exc)
+    # A game runs in its own folder, as its shortcut on Windows would: TrackMania Nations Forever started from
+    # elsewhere leaves an empty Nadeo.ini there and quits with exit status 0 before its menu.
+    folder = wiz3d_prefix.game_folder(command)
+    if folder:
+        os.chdir(folder)
     if not args.enabled:
         wiz3d_prefix.off(prefix)
         os.execvp(command[0], command)

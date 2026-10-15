@@ -75,6 +75,71 @@ def windows_path(path, prefix=None):
     return '\\\\?\\unix' + path.replace('/', '\\')
 
 
+USER_FOLDERS = ('Desktop', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos', 'Templates')
+
+
+def create(prefix, arch=None, log=None):
+    """Make a prefix for a game, the way a game manager does: wineboot for the architecture (WINEARCH, else
+    win64), the system's DXVK through dxvk-setup, the user folders as plain folders inside the prefix instead
+    of links to the real home (a game then reads and writes its settings there, never in ~/Documents), and
+    no menu entries or file associations from the games it will run.  Z: stays.  Nothing is downloaded."""
+    import shutil
+    import subprocess
+    arch = arch or os.environ.get('WINEARCH') or 'win64'
+    if arch not in ('win32', 'win64'):
+        raise RuntimeError('WINEARCH must be win32 or win64, not %r' % arch)
+    loader = shutil.which('wine32' if arch == 'win32' else 'wine64') or shutil.which('wine')
+    setup = shutil.which('dxvk-setup')
+    if not loader or not setup:
+        raise RuntimeError('the prefix %s does not exist and %s is not installed to make it' % (prefix, 'wine' if not loader else 'dxvk-setup'))
+    env = dict(os.environ, WINEPREFIX=prefix, WINEARCH=arch, WINE=loader, WINEDEBUG=os.environ.get('WINEDEBUG', '-all'),
+               WINEDLLOVERRIDES='mscoree,mshtml,winemenubuilder.exe=')
+    say = log or (lambda text: print('wiz3d-launch: ' + text, file=sys.stderr))
+    say('making the %s prefix %s with DXVK, its own user folders and no menu entries' % (arch, prefix))
+
+    def run(command):
+        done = subprocess.run(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        if done.returncode:
+            raise RuntimeError('%s failed (%d):\n%s' % (os.path.basename(command[0]), done.returncode, '\n'.join(done.stdout.splitlines()[-12:])))
+
+    run([loader, 'wineboot', '-u'])
+    run([loader, 'reg', 'add', r'HKEY_CURRENT_USER\Software\Wine\DllOverrides', '/v', 'winemenubuilder.exe', '/d', '', '/f'])
+    run([setup, 'install'])
+    # Microsoft's d3dx9 and shader compiler, as Lutris's D3D Extras: Wine's own compiler refuses the HLSL of
+    # older games (TrackMania Nations Forever: "Unexpected modifier used on a function").  Through winetricks,
+    # which fetches them from Microsoft and keeps them in its cache; WIZ3D_WINETRICKS=0 leaves them out.
+    winetricks = shutil.which('winetricks')
+    if winetricks and os.environ.get('WIZ3D_WINETRICKS', '1') != '0':
+        say('adding d3dx9 and d3dcompiler_43 with winetricks')
+        run([winetricks, '-q', 'd3dx9', 'd3dcompiler_43'])
+    elif not winetricks:
+        say('winetricks is not installed: games that need Microsoft\'s d3dx9 or shader compiler will miss them')
+    if shutil.which('wineserver'):
+        subprocess.run(['wineserver', '-w'], env=env)
+    isolate(prefix)
+
+
+def game_folder(command):
+    """The folder of the first Windows program the command names by a Unix path, or None."""
+    for word in command:
+        if word.lower().endswith('.exe') and os.path.dirname(word) and os.path.isdir(os.path.dirname(word)):
+            return os.path.dirname(os.path.abspath(word))
+    return None
+
+
+def isolate(prefix):
+    """Replace the links from the prefix's user folders to the real home with folders of the prefix."""
+    users = os.path.join(prefix, 'drive_c', 'users')
+    for user in os.listdir(users) if os.path.isdir(users) else ():
+        if user == 'Public':
+            continue
+        for name in USER_FOLDERS:
+            folder = os.path.join(users, user, name)
+            if os.path.islink(folder):
+                os.remove(folder)
+                os.mkdir(folder)
+
+
 def ours(path):
     return os.path.islink(path) and os.readlink(path).startswith(WIZ3D + '/')
 

@@ -16,6 +16,19 @@ Paths handed to the Windows side are named the way Wine names them (a drive of t
 so a prefix without the Z: drive works too.
 A 32-bit prefix (WINEARCH=win32) gets the x86 tree in its system32; a 64-bit prefix gets x64 in system32 and x86 in syswow64.
 .PP
+A prefix that does not exist yet is made first, the way a game manager makes one: wineboot for the architecture WINEARCH
+names (win64 when unset), the system's DXVK through
+.BR dxvk-setup (1),
+the user folders (Documents, Desktop and the others) as folders inside the prefix instead of links to the real home,
+so a game's settings never land in or come from ~/Documents, and no menu entries or file associations from the games it runs
+(winemenubuilder.exe is turned off in the prefix).
+Z: stays.
+Wine Mono and Gecko are not asked for at creation; a game that needs .NET or a browser control installs them later.
+So one command installs a game and the same command plays it:
+.BR "WINEPREFIX=~/games/x wiz3d-launch --disable-3d -- wine setup.exe" ,
+then
+.BR "WINEPREFIX=~/games/x wiz3d-launch -- wine game.exe" .
+.PP
 It needs DXVK in the prefix for Direct3D 9 and says so when it is not there.
 .SH OPTIONS
 .TP
@@ -27,7 +40,10 @@ Take wiz3D out of the prefix, if an earlier run left it, and run \fIcommand\fR a
 .SH ENVIRONMENT
 .TP
 WINEPREFIX
-The prefix to use (required).
+The prefix to use (required); made if it does not exist.
+.TP
+WINEARCH
+win32 or win64 for a prefix made here (default win64).
 .TP
 WIZ3D_ENABLE_3D
 0 does what \fB\-\-disable\-3d\fR does.
