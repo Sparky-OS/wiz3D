@@ -121,7 +121,7 @@ wait "$PROBE_PID"
 ! grep -q 'PROBE FAIL' "$D/probe.log"
 grep -q 'PROBE: Win32 test property verified' "$D/probe.log"
 grep -q 'no such atom' "$D/mirroring.txt"
-grep -q 'DXVK: v2.7.1' "$D/probe.log"
+grep -Eq 'DXVK: v?2\.7\.1' "$D/probe.log"
 grep -q 'llvmpipe' "$D/probe.log"
 if [ "$MODE" != mono ]; then
     grep -q 'Routing through WRAPPER' "$LOGFILE"
