@@ -5,18 +5,74 @@ Everything it makes is a symbolic link into /usr/lib/wiz3d, so `off` removes exa
 puts DXVK's d3d9.dll back where it was.  Both are idempotent.  The real Direct3D 9 is reached as
 d3d9_real.dll in the same folder: the proxy and the wrapper look for that name first."""
 import os
+import stat
+import string
 import sys
 
 WIZ3D = os.environ.get('WIZ3D_DIR', '/usr/lib/wiz3d')
 FILES = ('d3d9.dll', 'S3DWrapperD3D9.dll', 'S3DAPI.dll', 'ZLOg.dll', 'wiz3D_Config.xml', 'BaseProfile.xml', 'OutputMethods')
 
 
+def arch(prefix):
+    """'win32' or 'win64', as the prefix's system.reg says; a prefix without one is judged by its folders."""
+    try:
+        with open(os.path.join(prefix, 'system.reg'), encoding='utf-8', errors='replace') as reg:
+            for line in reg:
+                if line.startswith('#arch='):
+                    return line[6:].strip()
+                if not line.startswith(('WINE REGISTRY', '#', ';')):
+                    break
+    except OSError:
+        pass
+    return 'win64' if os.path.isdir(os.path.join(prefix, 'drive_c', 'windows', 'syswow64')) else 'win32'
+
+
 def system_dirs(prefix):
+    """The prefix's system folders with the wiz3D tree each one takes: x86 in a 32-bit prefix's system32."""
     windows = os.path.join(prefix, 'drive_c', 'windows')
+    if arch(prefix) == 'win32':
+        return [(os.path.join(windows, 'system32'), 'x86')]
     dirs = [(os.path.join(windows, 'system32'), 'x64')]
     if os.path.isdir(os.path.join(windows, 'syswow64')):
         dirs.append((os.path.join(windows, 'syswow64'), 'x86'))
     return dirs
+
+
+def default_prefix():
+    """The prefix the game will run in: WINEPREFIX, Proton's, or Wine's own default."""
+    if os.environ.get('WINEPREFIX'):
+        return os.environ['WINEPREFIX']
+    if os.environ.get('STEAM_COMPAT_DATA_PATH'):
+        return os.path.join(os.environ['STEAM_COMPAT_DATA_PATH'], 'pfx')
+    return os.path.expanduser('~/.wine')
+
+
+def windows_path(path, prefix=None):
+    """A Unix path the way Wine names it to Windows code: through the drive of the prefix that holds it
+    (the lowest letter, from the longest folder, as Wine's own lookup does), or as \\\\?\\unix\\... when no
+    drive does, which Wine accepts everywhere a path is taken.  So nothing here needs the Z: drive."""
+    path = os.path.abspath(path)
+    prefix = prefix or default_prefix()
+    drives = {}
+    for letter in string.ascii_lowercase:
+        try:
+            info = os.stat(os.path.join(prefix, 'dosdevices', letter + ':'))
+        except OSError:
+            continue
+        drives.setdefault((info.st_dev, info.st_ino), letter)
+    folder = path
+    while True:
+        try:
+            info = os.stat(folder)
+            if stat.S_ISDIR(info.st_mode) and (info.st_dev, info.st_ino) in drives:
+                rest = path[len(folder):].lstrip('/')
+                return drives[(info.st_dev, info.st_ino)].upper() + ':\\' + rest.replace('/', '\\')
+        except OSError:
+            pass
+        if folder == '/':
+            break
+        folder = os.path.dirname(folder)
+    return '\\\\?\\unix' + path.replace('/', '\\')
 
 
 def ours(path):
