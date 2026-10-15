@@ -22,6 +22,8 @@ def tree(path):
         seen.add(low)
         full = os.path.join(path, name)
         if os.path.isdir(full):
+            if os.path.islink(full) and os.path.realpath(path).startswith(os.path.realpath(full)):
+                continue  # a link back up the tree, as xwin makes include/<SDK version> -> .
             ents.append({'type': 'directory', 'name': name,
                          'contents': tree(full)})
         else:

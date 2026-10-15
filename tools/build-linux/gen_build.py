@@ -254,11 +254,17 @@ def main():
     # Preparing has no sources (Application, content-only); drop it.
     order = [p for p in order if p.srcs or p.ctype != 'Application']
     os.makedirs(out, exist_ok=True)
-    sdkinc = f'{xwin}/sdk/include/10.0.26100'
+    def sdk_dir(kind):
+        # xwin can lay the SDK out flat, with <SDK version> -> . beside it: use the folder itself, which the VFS overlay covers
+        top = f'{xwin}/sdk/{kind}'
+        versioned = f'{top}/10.0.26100'
+        return top if os.path.islink(versioned) and os.path.realpath(versioned) == os.path.realpath(top) else versioned
+    sdkinc = sdk_dir('include')
+    sdklib = sdk_dir('lib')
     sysinc = [f'{xwin}/crt/include', f'{sdkinc}/ucrt', f'{sdkinc}/um',
               f'{sdkinc}/shared', f'{sdkinc}/winrt']
-    syslib = [f'{xwin}/crt/lib/{XA}', f'{xwin}/sdk/lib/10.0.26100/um/{XA}',
-              f'{xwin}/sdk/lib/10.0.26100/ucrt/{XA}']
+    syslib = [f'{xwin}/crt/lib/{XA}', f'{sdklib}/um/{XA}',
+              f'{sdklib}/ucrt/{XA}']
     vfs = os.path.join(out, 'vfs.json')
     lines = []
     w = lines.append
