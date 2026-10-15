@@ -15,7 +15,8 @@ window.map()
 d.sync()
 state = os.environ.get('WIZ3D_STEREO_STATE')
 if state and os.environ.get('WIZ3D_ENABLE_3D') == '1':
-    path = state[2:].replace('\\', '/')
+    # the launcher names the file as Wine would: Z:\... (the root drive) or \\?\unix\... (no drive)
+    path = (state[len('\\\\?\\unix'):] if state.startswith('\\\\?\\unix') else state[2:]).replace('\\', '/')
     with open(path + '.tmp', 'w') as f:
         f.write(f'wiz3d-full-sbs-v1 1600 600 {window.id}\ntest.exe\n')
     os.replace(path + '.tmp', path)
