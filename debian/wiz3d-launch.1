@@ -3,7 +3,7 @@
 wiz3d-launch \- start a Direct3D 9 Wine game with wiz3D stereo installed in its prefix
 .SH SYNOPSIS
 .B wiz3d-launch
-[\fB\-\-enable\-3d\fR | \fB\-\-disable\-3d\fR] \fB\-\-\fR \fIcommand\fR [\fIargument\fR ...]
+[\fB\-\-enable\-3d\fR | \fB\-\-disable\-3d\fR | \fB\-\-native\-stereo\fR \fIlayout\fR [\fB\-\-right\-eye\-first\fR]] [\fB\-\-no\-fallback\fR] \fB\-\-\fR \fIcommand\fR [\fIargument\fR ...]
 .SH DESCRIPTION
 For a Wine game started with WINEPREFIX set.
 Puts wiz3D in the prefix's system folders in front of DXVK (DXVK's d3d9.dll is kept as d3d9_real.dll, the rest are
@@ -30,6 +30,23 @@ then
 .BR "WINEPREFIX=~/games/x wiz3d-launch -- wine game.exe" .
 .PP
 It needs DXVK in the prefix for Direct3D 9 and says so when it is not there.
+.PP
+A game with a 3D mode of its own draws both eyes itself, packed into its picture the way 3D televisions take it.
+With \fB\-\-native\-stereo\fR \fIlayout\fR wiz3D stays out of the prefix, the system's DXVK is told the packing
+(dxvk.stereoInput, through DXVK_CONFIG) and unpacks it to full side by side, left eye first, each eye at full size, and
+.BR wiz3d-run (1)
+declares the game's window.
+The layouts are the frame packings of H.264 Table D-8 and Matroska StereoMode, and the anaglyphs, named as stereo-layer names them:
+sideBySide, sideBySideQuincunx, topAndBottom, rows, columns, checkerboard, frameSequential, anaglyphRedCyan, anaglyphGreenMagenta, anaglyphAmberBlue
+(the case and dashes do not matter).
+Set the game's own 3D option to the layout named here, and its output format to nothing else: the desktop draws what the display needs.
+.PP
+Wine runs a 32-bit game in a 64-bit prefix in its WoW64 mode, which does not run a 16-bit program at all and leaves some older games crashing.
+When the command names the game by path and the game does not run in the 64-bit prefix, on evidence (a 16-bit program by its header,
+Wine's own words about the mode in the game's output, or an end within 30 seconds with a status that is not 0),
+the game runs again in a 32-bit prefix beside the first (\fIprefix\fR\-win32), made then as above, and the choice is remembered for that
+game in ~/.local/state/wiz3d/prefixes.json, where it can be removed.
+A quick end with status 0 and nothing said is the game's own doing and is left alone.
 .SH OPTIONS
 .TP
 .B \-\-enable\-3d
@@ -37,6 +54,15 @@ Use wiz3D (default).
 .TP
 .B \-\-disable\-3d
 Take wiz3D out of the prefix, if an earlier run left it, and run \fIcommand\fR as it is.
+.TP
+.BI \-\-native\-stereo " layout"
+The game draws both eyes itself in this packing: wiz3D stays out, DXVK unpacks the picture, the window is declared.
+.TP
+.B \-\-right\-eye\-first
+With \fB\-\-native\-stereo\fR: the first view of the packing (left half, top half, even rows, columns, pixels or frames, the first filter) is the right eye.
+.TP
+.B \-\-no\-fallback
+Never move a game that fails in the 64-bit prefix to a 32-bit one; WIZ3D_FALLBACK=0 does the same.
 .SH ENVIRONMENT
 .TP
 WINEPREFIX
@@ -50,6 +76,12 @@ WIZ3D_ENABLE_3D
 .TP
 WIZ3D_LOG_DIR
 The folder for wiz3D's logs and Statistic.xml.
+.TP
+WIZ3D_FALLBACK
+0 never moves a game to a 32-bit prefix.
+.TP
+DXVK_CONFIG
+Kept, with the stereo input added to it for \fB\-\-native\-stereo\fR.
 .SH EXIT STATUS
 The game's exit status.
 .SH AUTHOR

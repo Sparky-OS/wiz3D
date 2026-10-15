@@ -45,6 +45,26 @@ For a manual prefix: `wiz3d-run -- wine /path/to/game.exe`.
 A bare `WINEDLLOVERRIDES="d3d9=n,b" %command%` loads the DLLs but needs a KWin
 window rule to declare full SBS; it does not run the declaration helper.
 
+`wiz3d-launch` (see its man page) does the per-game setup itself for a Wine
+prefix: it puts the DLLs in the prefix in front of DXVK for one run, makes a
+missing prefix, runs the game in its own folder, and moves a 32-bit game that
+does not run in a 64-bit prefix to a 32-bit one beside it (on evidence: a 16-bit
+program, Wine's own words about its WoW64 mode, a quick end with a bad status),
+remembering the choice in `~/.local/state/wiz3d/prefixes.json`.
+
+A game with a 3D mode of its own, one of the "Native SBS/TAB" games of the main
+README, draws both eyes itself, packed as 3D televisions take it. Such a game
+does not get wiz3D: `wiz3d-launch --native-stereo LAYOUT -- wine game.exe`
+keeps wiz3D out, tells the system's DXVK the packing (`dxvk.stereoInput`, DXVK
+2.7.1-4+stereo3d3 or newer), which unpacks it to full side by side, left eye
+first, when presenting, and declares the game's window. The layouts are the
+frame packings of H.264 Table D-8 and Matroska StereoMode and the anaglyphs
+(sideBySide, sideBySideQuincunx, topAndBottom, rows, columns, checkerboard,
+frameSequential, anaglyphRedCyan, anaglyphGreenMagenta, anaglyphAmberBlue);
+`--right-eye-first` says the packing's first view is the right eye. Set the
+game's own 3D option to that packing and nothing else: the desktop draws what
+each display needs.
+
 ## Controls
 
 - **Enable 3D:** `wiz3d-run --enable-3d -- %command%` (the default).

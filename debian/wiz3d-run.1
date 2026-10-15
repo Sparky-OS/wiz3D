@@ -3,7 +3,7 @@
 wiz3d-run \- start a Direct3D 9 game with wiz3D stereo and declare its window to KWin
 .SH SYNOPSIS
 .B wiz3d-run
-[\fB\-\-enable\-3d\fR | \fB\-\-disable\-3d\fR] [\fB\-\-steam\-app\-id\fR \fIID\fR] \fB\-\-\fR \fIcommand\fR [\fIargument\fR ...]
+[\fB\-\-enable\-3d\fR | \fB\-\-disable\-3d\fR] [\fB\-\-native\-stereo\fR] [\fB\-\-steam\-app\-id\fR \fIID\fR] \fB\-\-\fR \fIcommand\fR [\fIargument\fR ...]
 .br
 .B wiz3d-run \-\-display\-settings
 .SH DESCRIPTION
@@ -22,6 +22,11 @@ Declare the game window (default).
 .TP
 .B \-\-disable\-3d
 Run the game without stereo and without a declaration for this launch.
+.TP
+.B \-\-native\-stereo
+The game draws both eyes itself and DXVK unpacks them (dxvk.stereoInput in DXVK_CONFIG, which
+.BR wiz3d-launch (1)
+sets): wiz3D is not loaded, and the one top-level window of the game's processes is declared.
 .TP
 .BI \-\-steam\-app\-id " ID"
 Match steam_app_ID if Proton reparents the game (default: $SteamAppId).
