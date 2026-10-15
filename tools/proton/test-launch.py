@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory() as temp:
     stub = temp / 'wiz3d-run'
     stub.write_text('#!/bin/sh\nshift\nls -l "$WINEPREFIX/drive_c/windows/system32/d3d9.dll" "$WINEPREFIX/drive_c/windows/system32/d3d9_real.dll" '
                     '"$WINEPREFIX/drive_c/windows/syswow64/d3d9_real.dll" > "$WINEPREFIX/during.txt" 2>&1\n'
-                    'printf "log dir: %s\\n" "$WIZ3D_LOG_DIR" >> "$WINEPREFIX/during.txt"\nexit 5\n')
+                    'printf "log dir: %s\\n" "$WIZ3D_LOG_DIR" >> "$WINEPREFIX/during.txt"\nprintf "cwd: %s\\n" "$PWD" >> "$WINEPREFIX/during.txt"\nexit 5\n')
     stub.chmod(0o755)
 
     def make_prefix(name, dxvk=True, arch='win64', drives=('z:',)):
@@ -155,3 +155,17 @@ with tempfile.TemporaryDirectory() as temp:
     result = subprocess.run([str(LAUNCH.with_name('wiz3d-run')), '--disable-3d', '--', 'true'], env=dict(os.environ, PATH=path), capture_output=True, text=True)
     assert result.returncode == 0 and 'foreign' not in result.stderr, result
     print('PASS: wiz3d-launch and wiz3d-run run on /usr/bin/python3 with a foreign python3 first on PATH')
+
+    # The game runs in the folder of its .exe, as its Windows shortcut would (TrackMania quits elsewhere).
+    folder = temp / 'Games' / 'Some Game'
+    folder.mkdir(parents=True)
+    (folder / 'game.exe').write_bytes(b'MZ')
+    result = run(prefix, '--', 'wine', str(folder / 'game.exe'))
+    during = (prefix / 'during.txt').read_text()
+    (prefix / 'during.txt').unlink()
+    assert result.returncode == 5 and f'cwd: {folder}' in during, during
+    result = run(prefix, '--', 'wine', 'game.exe')
+    during = (prefix / 'during.txt').read_text()
+    (prefix / 'during.txt').unlink()
+    assert f'cwd: {os.getcwd()}' in during, during
+    print("PASS: the game runs in its .exe's folder when named by path, and where the user is otherwise")
