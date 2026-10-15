@@ -4,13 +4,34 @@
 Everything it makes is a symbolic link into /usr/lib/wiz3d, so `off` removes exactly what `on` made and
 puts DXVK's d3d9.dll back where it was.  Both are idempotent.  The real Direct3D 9 is reached as
 d3d9_real.dll in the same folder: the proxy and the wrapper look for that name first."""
+import json
 import os
 import stat
 import string
 import sys
+import time
 
 WIZ3D = os.environ.get('WIZ3D_DIR', '/usr/lib/wiz3d')
 FILES = ('d3d9.dll', 'S3DWrapperD3D9.dll', 'S3DAPI.dll', 'ZLOg.dll', 'wiz3D_Config.xml', 'BaseProfile.xml', 'OutputMethods')
+
+# The stereo packings a game may draw itself (DXVK's dxvk.stereoInput, the names of stereo-layer's Layout): the frame
+# packings of H.264 Table D-8 and Matroska StereoMode, and the anaglyphs.  DXVK unpacks them to full side by side.
+NATIVE_LAYOUTS = ('sideBySide', 'sideBySideQuincunx', 'topAndBottom', 'rows', 'columns', 'checkerboard',
+                  'frameSequential', 'anaglyphRedCyan', 'anaglyphGreenMagenta', 'anaglyphAmberBlue')
+
+
+def native_layout(name):
+    """The layout name as DXVK spells it, from any spelling of the case or the dashes; an unknown name as it came."""
+    for layout in NATIVE_LAYOUTS:
+        if name.replace('-', '').replace('_', '').lower() == layout.lower():
+            return layout
+    return name
+
+
+def dxvk_config(layout, right_first, config=None):
+    """DXVK_CONFIG with the stereo input added to what is already there."""
+    ours = 'dxvk.stereoInput = %s; dxvk.stereoInputRightFirst = %s' % (layout, 'True' if right_first else 'False')
+    return ours if not config else config.rstrip('; ') + '; ' + ours
 
 
 def arch(prefix):
@@ -119,12 +140,99 @@ def create(prefix, arch=None, log=None):
     isolate(prefix)
 
 
-def game_folder(command):
-    """The folder of the first Windows program the command names by a Unix path, or None."""
+def game_exe(command):
+    """The first Windows program the command names by a Unix path, as an absolute path, or None."""
     for word in command:
         if word.lower().endswith('.exe') and os.path.dirname(word) and os.path.isdir(os.path.dirname(word)):
-            return os.path.dirname(os.path.abspath(word))
+            return os.path.abspath(word)
     return None
+
+
+def game_folder(command):
+    """The folder of the first Windows program the command names by a Unix path, or None."""
+    exe = game_exe(command)
+    return os.path.dirname(exe) if exe else None
+
+
+def exe_kind(path):
+    """What a program is, from its own header: 'win16' (an NE program), 'win32', 'win64', 'dos' (MZ with nothing
+    newer behind it), or None for a file that is not a Windows program or cannot be read."""
+    try:
+        with open(path, 'rb') as exe:
+            head = exe.read(0x40)
+            if head[:2] != b'MZ' or len(head) < 0x40:
+                return None
+            exe.seek(int.from_bytes(head[0x3c:0x40], 'little'))
+            signature = exe.read(6)
+    except (OSError, ValueError):
+        return None
+    if signature[:2] == b'NE':
+        return 'win16'
+    if signature[:4] == b'PE\0\0':
+        return {0x14c: 'win32', 0x8664: 'win64', 0xaa64: 'win64'}.get(int.from_bytes(signature[4:6], 'little'))
+    return 'dos'
+
+
+# A 32-bit game's run in a 64-bit prefix (Wine's WoW64 mode) counts as failed on evidence only.
+FAILURE_SECONDS = 30
+# What Wine prints when the mode cannot run a program or the program dies in it (a 16-bit program, the loader, the
+# exception dispatcher), seen in the rig and in Daniel's session; one of these in the output is evidence by itself.
+WOW64_EVIDENCE = ('Bad EXE format', 'winevdm.exe\" failed', 'krnl386.exe16\" failed to initialize', 'failed to initialize, aborting',
+                  'unable to dispatch exception',
+                  'Exception frame is not in stack limits', 'Unhandled exception', 'unhandled page fault', 'stack overflow')
+
+
+def failed_in_wow64(kind, status, seconds, output):
+    """Why a run of a 32-bit (or 16-bit) program in a 64-bit prefix counts as failed, or None when it does not.
+
+    Evidence only: a 16-bit program, which the mode cannot run at all; an end within FAILURE_SECONDS with a status that
+    is not 0; or Wine's own words about the mode in the output (WOW64_EVIDENCE), whatever the status.  A quick end with
+    status 0 and nothing said is the game's own doing (TrackMania started from the wrong folder) and is not one."""
+    if kind not in ('win16', 'win32', 'dos'):
+        return None
+    if kind == 'win16':
+        return 'a 16-bit program, which the 64-bit prefix (Wine\'s WoW64 mode) does not run'
+    said = [line for line in (output or '').splitlines() if any(word.lower() in line.lower() for word in WOW64_EVIDENCE)]
+    if said:
+        return 'Wine said "%s"' % said[0].strip()[:160]
+    if seconds < FAILURE_SECONDS and status != 0:
+        return 'it ended after %d s with status %d' % (seconds, status)
+    return None
+
+
+def fallback_prefix(prefix):
+    """The 32-bit prefix that stands in for a 64-bit one: a sibling folder named after it."""
+    return prefix.rstrip('/') + '-win32'
+
+
+def choices_path():
+    return os.path.join(os.environ.get('XDG_STATE_HOME') or os.path.join(os.path.expanduser('~'), '.local', 'state'),
+                        'wiz3d', 'prefixes.json')
+
+
+def load_choices():
+    try:
+        with open(choices_path(), encoding='utf-8') as file:
+            choices = json.load(file)
+        return choices if isinstance(choices, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def remembered_prefix(exe):
+    """The 32-bit prefix chosen for this program on an earlier run, with the reason and the date, or None."""
+    choice = load_choices().get(exe)
+    return choice if isinstance(choice, dict) and choice.get('prefix') else None
+
+
+def remember_prefix(exe, prefix, reason):
+    choices = load_choices()
+    choices[exe] = {'prefix': prefix, 'reason': reason, 'date': time.strftime('%Y-%m-%d')}
+    path = choices_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as file:
+        json.dump(choices, file, indent=1, sort_keys=True)
+        file.write('\n')
 
 
 def isolate(prefix):

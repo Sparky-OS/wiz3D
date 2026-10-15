@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: LGPL-2.1-or-later
-"""Launch a DX9 game and declare only the packed window reported by wiz3D."""
+"""Launch a DX9 game and declare only the packed window reported by wiz3D.
+
+With --native-stereo the game draws both eyes itself and DXVK unpacks them (dxvk.stereoInput in DXVK_CONFIG, set by
+wiz3d-launch): wiz3D is not loaded, and the one top-level window of the game's processes is what gets declared."""
 import argparse
 import os
 import signal
@@ -23,6 +26,7 @@ def main():
     enable.add_argument('--enable-3d', dest='enabled', action='store_true', default=True, help='Enable 3D (default)')
     enable.add_argument('--disable-3d', dest='enabled', action='store_false', help='Disable 3D for this launch')
     parser.add_argument('--display-settings', action='store_true', help='Open Display settings')
+    parser.add_argument('--native-stereo', action='store_true', help='The game draws both eyes itself, DXVK unpacks them: declare the window of its processes, without wiz3D')
     parser.add_argument('--steam-app-id', type=int, default=os.environ.get('SteamAppId'), help='Match steam_app_ID if Proton reparents the game')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -33,13 +37,15 @@ def main():
         command = command[1:]
     if not command:
         parser.error('a game command is required after --')
-    declaration = Declaration(on_declare=lambda wid: print(f'wiz3d-run: declared 0x{wid:x}: full SBS, game/gl', flush=True)) if args.enabled else None
+    source = "the game's own stereo, unpacked by DXVK" if args.native_stereo else 'game/gl'
+    declaration = Declaration(on_declare=lambda wid: print(f'wiz3d-run: declared 0x{wid:x}: full SBS, {source}', flush=True)) if args.enabled else None
     env = os.environ.copy()
-    env['WIZ3D_ENABLE_3D'] = '1' if args.enabled else '0'
+    env['WIZ3D_ENABLE_3D'] = '0' if args.native_stereo or not args.enabled else '1'
     if declaration and declaration.version >= 3:
         env['WIZ3D_KWIN_DOUBLES'] = '1'
-    overrides = env.get('WINEDLLOVERRIDES', '')
-    env['WINEDLLOVERRIDES'] = overrides + (';' if overrides else '') + 'd3d9=n,b'
+    if not args.native_stereo:
+        overrides = env.get('WINEDLLOVERRIDES', '')
+        env['WINEDLLOVERRIDES'] = overrides + (';' if overrides else '') + 'd3d9=n,b'
     with tempfile.TemporaryDirectory(prefix='wiz3d-', dir=env.get('XDG_RUNTIME_DIR')) as temp:
         state = Path(temp) / 'window-state'
         env['WIZ3D_STEREO_STATE'] = wiz3d_prefix.windows_path(state)
@@ -54,7 +60,9 @@ def main():
         steam_class = f'steam_app_{args.steam_app_id}' if args.steam_app_id else None
         try:
             while child.poll() is None:
-                if declaration:
+                if declaration and args.native_stereo:
+                    declaration.update(declaration.windows_of(descendants(child.pid, known)))
+                elif declaration:
                     current = window_state(state)
                     pids = descendants(child.pid, known) if current and not current[3] else known
                     if current and current != last_state:
@@ -69,7 +77,10 @@ def main():
             if declaration:
                 declaration.close()
         if declaration and not declaration.declared_any:
-            print('wiz3d-run: no full-SBS game window was declared; check the DLLs and the configuration (the plug-in never wrote %s)' % env['WIZ3D_STEREO_STATE'], file=sys.stderr)
+            if args.native_stereo:
+                print('wiz3d-run: no window of the game\'s processes was declared; the game has to show one top-level window', file=sys.stderr)
+            else:
+                print('wiz3d-run: no full-SBS game window was declared; check the DLLs and the configuration (the plug-in never wrote %s)' % env['WIZ3D_STEREO_STATE'], file=sys.stderr)
             if child.returncode == 0:
                 return 1
         return child.returncode if child.returncode >= 0 else 128 - child.returncode

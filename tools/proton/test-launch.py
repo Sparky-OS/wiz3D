@@ -169,3 +169,96 @@ with tempfile.TemporaryDirectory() as temp:
     (prefix / 'during.txt').unlink()
     assert f'cwd: {os.getcwd()}' in during, during
     print("PASS: the game runs in its .exe's folder when named by path, and where the user is otherwise")
+
+    # A 32-bit game that does not run in the 64-bit prefix runs in a 32-bit one beside it, made then and remembered.
+    # Wine and dxvk-setup are stand-ins: "wine" fails fast with Wine's own words in the 64-bit prefix and runs in the
+    # 32-bit one; "wine32 wineboot" makes the prefix skeleton; both record their calls.
+    fake = temp / 'fake-bin'
+    fake.mkdir()
+    (fake / 'wine').write_text('#!/bin/sh\necho "wine $WINEPREFIX $*" >> "$FAKE_LOG"\n'
+                               'case "$WINEPREFIX" in *-win32) sleep "${FAKE_WIN32_SECONDS:-0}"; exit "${FAKE_WIN32_STATUS:-0}";; esac\n'
+                               'echo "${FAKE_SAY:-}" >&2\nsleep "${FAKE_SECONDS:-0}"\nexit "${FAKE_STATUS:-0}"\n')
+    (fake / 'wine32').write_text('#!/bin/sh\necho "wine32 $WINEPREFIX $*" >> "$FAKE_LOG"\n'
+                                 'if [ "$1" = wineboot ]; then mkdir -p "$WINEPREFIX/drive_c/windows/system32" "$WINEPREFIX/dosdevices"\n'
+                                 '  printf "WINE REGISTRY Version 2\\n;; All keys relative to \\\\\\\\Machine\\n\\n#arch=win32\\n\\n" > "$WINEPREFIX/system.reg"\n'
+                                 '  ln -s "$WINEPREFIX/drive_c" "$WINEPREFIX/dosdevices/c:"; ln -s / "$WINEPREFIX/dosdevices/z:"; fi\nexit 0\n')
+    (fake / 'dxvk-setup').write_text('#!/bin/sh\necho "dxvk-setup $WINEPREFIX $*" >> "$FAKE_LOG"\nprintf "MZ DXVK_HUD d3d9 x86" > "$WINEPREFIX/drive_c/windows/system32/d3d9.dll"\n')
+    (fake / 'wineserver').write_text('#!/bin/sh\nexit 0\n')
+    for name in ('wine', 'wine32', 'dxvk-setup', 'wineserver'):
+        (fake / name).chmod(0o755)
+    fake_log = temp / 'fake.log'
+    state = temp / 'state'
+    pe = b'MZ' + bytes(0x3a) + (0x40).to_bytes(4, 'little') + b'PE\0\0' + (0x14c).to_bytes(2, 'little') + bytes(20)
+    game32 = temp / 'Games' / 'Old Game' / 'old.exe'
+    game32.parent.mkdir(parents=True)
+    game32.write_bytes(pe)
+    sixtyfour = make_prefix('p64')
+
+    def launch(prefix, *args, **env):
+        fake_log.write_text('')
+        full = dict(PATH=str(fake) + ':' + os.environ['PATH'], FAKE_LOG=str(fake_log), XDG_STATE_HOME=str(state), WIZ3D_WINETRICKS='0', WINEDEBUG='-all')
+        full.update(env)
+        return run(prefix, *args, **full)
+
+    result = launch(sixtyfour, '--disable-3d', '--', 'wine', str(game32), FAKE_SAY='00dc:err:module:loader_init "krnl386.exe16" failed to initialize, aborting', FAKE_STATUS='5')
+    calls = fake_log.read_text()
+    other = str(sixtyfour) + '-win32'
+    assert result.returncode == 0, result
+    assert 'does not run in the 64-bit prefix' in result.stderr and 'krnl386.exe16' in result.stderr and 'made now' in result.stderr, result.stderr
+    assert f'wine {sixtyfour} ' in calls and f'wine32 {other} wineboot' in calls and f'dxvk-setup {other}' in calls and f'wine {other} ' in calls, calls
+    assert (Path(other) / 'system.reg').read_text().count('#arch=win32') == 1
+    assert 'remembered for' in result.stderr and (state / 'wiz3d' / 'prefixes.json').exists(), result.stderr
+    print('PASS: a 32-bit game that fails in the 64-bit prefix with Wine\'s words runs in a 32-bit prefix made beside it, and the choice is remembered')
+
+    result = launch(sixtyfour, '--disable-3d', '--', 'wine', str(game32), FAKE_STATUS='5')
+    calls = fake_log.read_text()
+    assert result.returncode == 0 and 'chosen on' in result.stderr and f'wine {sixtyfour} ' not in calls and f'wine {other} ' in calls, (result.stderr, calls)
+    print('PASS: the next launch goes straight to the remembered 32-bit prefix and says why')
+
+    result = launch(sixtyfour, '--disable-3d', '--', 'wine', str(game32), FAKE_STATUS='5', WIZ3D_FALLBACK='0')
+    calls = fake_log.read_text()
+    assert result.returncode == 5 and f'wine {sixtyfour} ' in calls and f'wine {other} ' not in calls and 'prefix' not in result.stderr, (result, calls)
+    print('PASS: WIZ3D_FALLBACK=0 runs the game where it was asked and passes its status on')
+
+    (state / 'wiz3d' / 'prefixes.json').unlink()
+    result = launch(sixtyfour, '--disable-3d', '--', 'wine', str(game32), FAKE_STATUS='0')
+    calls = fake_log.read_text()
+    assert result.returncode == 0 and f'wine {other} ' not in calls and 'prefix' not in result.stderr, (result, calls)
+    print('PASS: a quick end with status 0 and nothing said is not a failure (TrackMania from the wrong folder): no fallback')
+
+    result = launch(sixtyfour, '--disable-3d', '--', 'wine', str(game32), FAKE_STATUS='3', FAKE_WIN32_STATUS='3')
+    calls = fake_log.read_text()
+    assert result.returncode == 3 and f'wine {other} ' in calls and 'either' in result.stderr and not (state / 'wiz3d' / 'prefixes.json').exists(), (result.stderr, calls)
+    print('PASS: a quick bad status tries the 32-bit prefix; when that fails too, it says so and remembers nothing')
+
+    game64 = game32.with_name('new64.exe')
+    game64.write_bytes(pe.replace((0x14c).to_bytes(2, 'little'), (0x8664).to_bytes(2, 'little')))
+    result = launch(sixtyfour, '--disable-3d', '--', 'wine', str(game64), FAKE_STATUS='3')
+    calls = fake_log.read_text()
+    assert result.returncode == 3 and f'wine {other} ' not in calls and 'prefix' not in result.stderr, (result, calls)
+    print('PASS: a 64-bit game never moves to a 32-bit prefix')
+
+    ne = b'MZ' + bytes(0x3a) + (0x40).to_bytes(4, 'little') + b'NE' + bytes(20)
+    game16 = game32.with_name('setup16.exe')
+    game16.write_bytes(ne)
+    result = launch(sixtyfour, '--disable-3d', '--', 'wine', str(game16))
+    calls = fake_log.read_text()
+    assert result.returncode == 0 and '16-bit program' in result.stderr and f'wine {sixtyfour} ' not in calls and f'wine {other} ' in calls, (result.stderr, calls)
+    print('PASS: a 16-bit program goes to the 32-bit prefix from its header, without a failed run first')
+    (state / 'wiz3d' / 'prefixes.json').unlink()
+
+    # The game draws both eyes itself: wiz3D stays out, DXVK is told the packing, wiz3d-run declares the window.
+    stub.write_text('#!/bin/sh\necho "run $*" > "$WINEPREFIX/during.txt"\nprintf "config: %s\\n" "$DXVK_CONFIG" >> "$WINEPREFIX/during.txt"\n'
+                    'ls -l "$WINEPREFIX/drive_c/windows/system32/d3d9.dll" >> "$WINEPREFIX/during.txt"\n'
+                    '[ -e "$WINEPREFIX/drive_c/windows/system32/S3DAPI.dll" ] && echo "S3DAPI present" >> "$WINEPREFIX/during.txt" || echo "S3DAPI absent" >> "$WINEPREFIX/during.txt"\nexit 0\n')
+    result = run(prefix, '--native-stereo', 'top-and-bottom', '--right-eye-first', '--', 'game', DXVK_CONFIG='dxvk.hud = fps')
+    during = (prefix / 'during.txt').read_text()
+    (prefix / 'during.txt').unlink()
+    assert result.returncode == 0, result
+    assert 'run --native-stereo -- game' in during, during
+    assert 'config: dxvk.hud = fps; dxvk.stereoInput = topAndBottom; dxvk.stereoInputRightFirst = True' in during, during
+    assert 'S3DAPI absent' in during and 'd3d9.dll -> ' not in during, during
+    assert tree(prefix) == before
+    result = run(prefix, '--native-stereo', 'sideways', '--', 'game')
+    assert result.returncode != 0 and 'sideBySide' in result.stderr and 'checkerboard' in result.stderr, result.stderr
+    print('PASS: --native-stereo keeps wiz3D out, names the packing to DXVK and wiz3d-run, and lists the layouts for a wrong one')

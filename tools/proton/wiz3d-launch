@@ -1,23 +1,91 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: LGPL-2.1-or-later
-"""Run a Wine game in stereo from a prefix: wiz3d-launch [--disable-3d] -- wine game.exe
+"""Run a Wine game in stereo from a prefix: wiz3d-launch [--disable-3d] [--native-stereo LAYOUT] -- wine game.exe
 
 Puts wiz3D in the game's prefix (WINEPREFIX) in front of DXVK, runs the game through wiz3d-run, which
 declares its window to KWin, and takes wiz3D out again when the game ends.  With WIZ3D_ENABLE_3D=0 or
---disable-3d it leaves the prefix as DXVK alone has it and runs the game as it is.  A prefix that does not
-exist yet is made first: WINEARCH's architecture (win64 by default), DXVK, the user folders inside the
-prefix, no menu entries; the same command installs a game and then plays it.  The game runs in the folder
-of its .exe when the command names one by path."""
+--disable-3d it leaves the prefix as DXVK alone has it and runs the game as it is.  With --native-stereo
+the game draws both eyes itself in the packing named: wiz3D stays out, DXVK unpacks the picture to full
+side by side, and wiz3d-run declares the game's window.  A prefix that does not exist yet is made first:
+WINEARCH's architecture (win64 by default), DXVK, the user folders inside the prefix, no menu entries; the
+same command installs a game and then plays it.  The game runs in the folder of its .exe when the command
+names one by path.  A 32-bit game that does not run in the 64-bit prefix, on evidence (a 16-bit program,
+Wine's own words about its WoW64 mode, or a quick end with a bad status), runs in a 32-bit prefix beside
+it instead, made then and remembered for that game."""
 import argparse
+import collections
 import os
 import signal
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib' / 'wiz3d' / 'python'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import wiz3d_prefix
+
+
+def say(text):
+    print('wiz3d-launch: ' + text, file=sys.stderr, flush=True)
+
+
+def make_prefix(prefix, arch=None):
+    if not os.path.isfile(os.path.join(prefix, 'system.reg')):
+        try:
+            wiz3d_prefix.create(prefix, arch)
+        except (OSError, RuntimeError) as exc:
+            sys.exit('wiz3d-launch: cannot make the prefix: %s' % exc)
+
+
+def run_game(prefix, command, args, log_dir):
+    """Runs the game in the prefix, with wiz3D in front of DXVK, or without it, or with the game's own stereo
+    unpacked by DXVK, as asked; returns the exit status, the seconds it ran, and the last lines of its error output."""
+    os.environ['WINEPREFIX'] = prefix
+    if args.native or not args.enabled:
+        wiz3d_prefix.off(prefix)
+        full = command
+        if args.native:
+            os.environ['DXVK_CONFIG'] = wiz3d_prefix.dxvk_config(args.native, args.right_first, os.environ.get('DXVK_CONFIG'))
+            full = [os.environ.get('WIZ3D_RUN', 'wiz3d-run'), '--native-stereo', '--'] + command
+    else:
+        try:
+            without_dxvk = wiz3d_prefix.on(prefix)
+        except (OSError, RuntimeError) as exc:
+            sys.exit('wiz3d-launch: %s' % exc)
+        for folder in without_dxvk:
+            say('no DXVK in %s, so games of that kind run without stereo' % folder)
+        if '\\' not in log_dir:
+            Path(log_dir).mkdir(parents=True, exist_ok=True)
+            log_dir = wiz3d_prefix.windows_path(log_dir, prefix)
+        os.environ['WIZ3D_LOG_DIR'] = log_dir
+        full = [os.environ.get('WIZ3D_RUN', 'wiz3d-run'), '--'] + command
+    # The game's error output passes through, and its last lines are kept: Wine says there what went wrong.
+    tail = collections.deque(maxlen=200)
+    started = time.monotonic()
+    try:
+        child = subprocess.Popen(full, stderr=subprocess.PIPE)
+    except OSError as exc:
+        sys.exit('wiz3d-launch: cannot run %s: %s' % (full[0], exc))
+
+    def relay():
+        for line in child.stderr:
+            sys.stderr.buffer.write(line)
+            sys.stderr.buffer.flush()
+            tail.append(line.decode('utf-8', 'replace'))
+
+    reader = threading.Thread(target=relay, daemon=True)
+    reader.start()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, lambda signum, frame: child.send_signal(signum))
+    try:
+        status = child.wait()
+    finally:
+        reader.join(5)
+        if args.enabled and not args.native:
+            wiz3d_prefix.off(prefix)
+    return status, time.monotonic() - started, ''.join(tail)
 
 
 def main():
@@ -26,43 +94,55 @@ def main():
     enable = parser.add_mutually_exclusive_group()
     enable.add_argument('--enable-3d', dest='enabled', action='store_true', default=os.environ.get('WIZ3D_ENABLE_3D') != '0')
     enable.add_argument('--disable-3d', dest='enabled', action='store_false', help='Run without wiz3D, as WIZ3D_ENABLE_3D=0 does')
+    parser.add_argument('--native-stereo', dest='native', metavar='LAYOUT', type=wiz3d_prefix.native_layout, choices=wiz3d_prefix.NATIVE_LAYOUTS,
+                        help='The game draws both eyes itself in this packing (%s): wiz3D stays out, DXVK unpacks it '
+                        'to full side by side, and the window is declared' % ', '.join(wiz3d_prefix.NATIVE_LAYOUTS))
+    parser.add_argument('--right-eye-first', dest='right_first', action='store_true',
+                        help='With --native-stereo: the first view of the packing is the right eye')
+    parser.add_argument('--no-fallback', dest='fallback', action='store_false', default=os.environ.get('WIZ3D_FALLBACK') != '0',
+                        help='Never move a game that fails in the 64-bit prefix to a 32-bit one (WIZ3D_FALLBACK=0)')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ['--'] else args.command
     prefix = os.environ.get('WINEPREFIX')
     if not prefix or not command:
         parser.error('a Wine game command is required after --, with WINEPREFIX set')
-    if not os.path.isfile(os.path.join(prefix, 'system.reg')):
-        try:
-            wiz3d_prefix.create(prefix)
-        except (OSError, RuntimeError) as exc:
-            sys.exit('wiz3d-launch: cannot make the prefix: %s' % exc)
+    prefix = prefix.rstrip('/') or prefix
+    log_dir = os.environ.get('WIZ3D_LOG_DIR') or str(Path(os.environ.get('XDG_STATE_HOME') or Path.home() / '.local' / 'state') / 'wiz3d')
+    exe = wiz3d_prefix.game_exe(command)
+    kind = wiz3d_prefix.exe_kind(exe) if exe else None
+    fallback = args.fallback and exe is not None
+    choice = wiz3d_prefix.remembered_prefix(exe) if fallback else None
+    if choice and os.path.isfile(os.path.join(choice['prefix'], 'system.reg')):
+        say('running in the 32-bit prefix %s, chosen on %s because %s; to try %s again, remove the entry in %s or set WIZ3D_FALLBACK=0'
+            % (choice['prefix'], choice['date'], choice['reason'], prefix, wiz3d_prefix.choices_path()))
+        prefix = choice['prefix']
+        fallback = False
+    make_prefix(prefix)
     # A game runs in its own folder, as its shortcut on Windows would: TrackMania Nations Forever started from
     # elsewhere leaves an empty Nadeo.ini there and quits with exit status 0 before its menu.
     folder = wiz3d_prefix.game_folder(command)
     if folder:
         os.chdir(folder)
-    if not args.enabled:
-        wiz3d_prefix.off(prefix)
-        os.execvp(command[0], command)
-    try:
-        without_dxvk = wiz3d_prefix.on(prefix)
-    except (OSError, RuntimeError) as exc:
-        sys.exit('wiz3d-launch: %s' % exc)
-    for folder in without_dxvk:
-        print('wiz3d-launch: no DXVK in %s, so games of that kind run without stereo' % folder, file=sys.stderr)
-    log_dir = os.environ.get('WIZ3D_LOG_DIR') or str(Path(os.environ.get('XDG_STATE_HOME') or Path.home() / '.local' / 'state') / 'wiz3d')
-    if '\\' not in log_dir:
-        Path(log_dir).mkdir(parents=True, exist_ok=True)
-        log_dir = wiz3d_prefix.windows_path(log_dir, prefix)
-    os.environ['WIZ3D_LOG_DIR'] = log_dir
-    child = subprocess.Popen([os.environ.get('WIZ3D_RUN', 'wiz3d-run'), '--'] + command)
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        signal.signal(sig, lambda signum, frame: child.send_signal(signum))
-    try:
-        status = child.wait()
-    finally:
-        wiz3d_prefix.off(prefix)
+    fallback = fallback and wiz3d_prefix.arch(prefix) == 'win64'
+    # A 16-bit program is known from its header not to run in the 64-bit prefix: no need to see it fail first.
+    reason = wiz3d_prefix.failed_in_wow64(kind, 0, 0, '') if fallback and kind == 'win16' else None
+    if not reason:
+        status, seconds, output = run_game(prefix, command, args, log_dir)
+        if fallback:
+            reason = wiz3d_prefix.failed_in_wow64(kind, status, seconds, output)
+    if reason:
+        other = wiz3d_prefix.fallback_prefix(prefix)
+        made = os.path.isfile(os.path.join(other, 'system.reg'))
+        say('the game does not run in the 64-bit prefix %s: %s. It runs in a 32-bit prefix instead, %s%s.'
+            % (prefix, reason, other, '' if made else ', which is made now'))
+        make_prefix(other, 'win32')
+        status, seconds, output = run_game(other, command, args, log_dir)
+        if status == 0 or seconds >= wiz3d_prefix.FAILURE_SECONDS:
+            wiz3d_prefix.remember_prefix(exe, other, reason)
+            say('the 32-bit prefix is remembered for %s in %s' % (exe, wiz3d_prefix.choices_path()))
+        else:
+            say('the game did not run in the 32-bit prefix either (status %d after %d s); nothing is remembered' % (status, seconds))
     return status if status >= 0 else 128 - status
 
 
