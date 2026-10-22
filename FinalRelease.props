@@ -12,13 +12,20 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <!-- FINAL_RELEASE used to gate zlog + DEBUG_MESSAGE/DEBUG_TRACE
-           sites out of the shipping build; 0.4.0+ keeps zlog live in the
-           Final Release config (field repro traces have been more valuable
-           than the small log overhead) so this flag is no longer defined.
-           The optimisation flags below are what makes this "Final Release" —
-           the preprocessor strip was a separate choice we've reversed. -->
-      <PreprocessorDefinitions>IZ3D_BUILD;_HAS_EXCEPTIONS=0;BOOST_NO_STD_TYPEINFO;_SECURE_ATL=0;_SECURE_SCL=0;ATLENSURE(expr)=(expr);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- FINAL_RELEASE strips DEBUG_MESSAGE / DEBUG_TRACE1/2/3 call-sites
+           out of hot paths (Trace.h: ZLOG_ALLOW_TRACING is defined only when
+           FINAL_RELEASE isn't, so those macros become `if (FALSE) __noop`).
+           Removed in 36b91313 (0.4.0) under the assumption that keeping
+           traces live was costless; call-site density in BaseStereoRenderer
+           / BaseSwapChain hot paths actually corrupts DX9 stereo in a
+           subset of titles (GTA IV, L4D, AvP, HTS — issue #38). Reinstated
+           for 0.4.1. zlog itself still ships and writes to disk:
+           InitializeLogging(), gInfo.LogFileDirectory and the gInfo dump-flag
+           fields were decoupled from this define (0.4.1 changes to
+           GlobalData.h / Logging.h / Logging.cpp / dllmain.cpp /
+           S3DWrapper9/Globals.cpp) so shipped builds keep the log-file
+           plumbing while losing the trace noise. -->
+      <PreprocessorDefinitions>IZ3D_BUILD;FINAL_RELEASE;_HAS_EXCEPTIONS=0;BOOST_NO_STD_TYPEINFO;_SECURE_ATL=0;_SECURE_SCL=0;ATLENSURE(expr)=(expr);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>false</ExceptionHandling>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>

@@ -16,6 +16,8 @@
 #include "../ZLOg/ZLOg.h"
 #include "EnumToString.h"
 
-#ifdef ZLOG_ALLOW_TRACING
+// 0.4.1: InitializeLogging stays exported regardless of FINAL_RELEASE so
+// zlog's log-file path (gInfo.LogFileDirectory / LogFileName) is wired up
+// in every build. Call-sites in S3DAPI/dllmain.cpp, S3DWrapper9/Globals.cpp
+// and S3DWrapper10/S3DWrapperD3D10.cpp are all ungated.
 void S3DAPI_API InitializeLogging();
-#endif

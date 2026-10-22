@@ -302,12 +302,20 @@ public:
 	bool		LastDrawStereo;
 
 	// config data
-#ifdef ZLOG_ALLOW_TRACING
+	// 0.4.1: these fields used to live under #ifdef ZLOG_ALLOW_TRACING /
+	// #ifndef FINAL_RELEASE, but modern consumers (ShaderHunter9/10,
+	// S3DWrapperD3D10, DX9ShaderConverter, ShaderWrapper, etc.) reference
+	// them ungated so stripping them under FINAL_RELEASE breaks the link.
+	// Keeping them always-present (~16 bytes) decouples the field layout
+	// from FINAL_RELEASE and lets the preprocessor flag strip only the
+	// DEBUG_TRACE call-sites it was meant to. pTrace stays gated because
+	// its type (zlog::SEVERITY*) comes from ZLOg.h, whose zlog namespace
+	// is itself #ifdef ZLOG_ALLOW_TRACING; nothing outside the gate uses it.
 	TCHAR       LogFileName[MAX_PATH];
 	TCHAR		LogFileDirectory[MAX_PATH];
+#ifdef ZLOG_ALLOW_TRACING
 	zlog::SEVERITY*	pTrace;
 #endif
-#ifndef FINAL_RELEASE
 	bool		ShowDebugInfo;
 	bool		DumpOn;
 	bool		DumpInitialData;
@@ -320,7 +328,6 @@ public:
 	bool		ClearBeforeEveryDrawWhenDoDump;
 	bool		ReplaceDSSurfacesByTextures;
 	bool		TwoPassRendering;
-#endif
 
 	TCHAR       OutputMethodDll[40];
 	DWORD       OutputMode;

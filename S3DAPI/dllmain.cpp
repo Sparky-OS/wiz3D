@@ -44,9 +44,10 @@ void InitDriverDirectory( HINSTANCE hinstDLL )
 	TCHAR szPath[MAX_PATH];
 	if(iz3d::resources::GetCurrentUserDirectory(szPath)) 
 		CreateDirectory(szPath, NULL); // special for multiple users
-#ifdef ZLOG_ALLOW_TRACING
+	// 0.4.1: wire up zlog's log-file path regardless of FINAL_RELEASE so
+	// shipped builds still write to wiz3D_Logs/<Game>/<Game>.log. DEBUG_TRACE
+	// call-sites remain FINAL_RELEASE-stripped — only the plumbing stays.
 	InitializeLogging();
-#endif
 }
 
 typedef DWORD (CALLBACK* LPFNGETOUTPUTCAPS)();

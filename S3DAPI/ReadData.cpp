@@ -279,7 +279,9 @@ bool ReadConfigRouterType()
 	{
 		static XmlValue pValItems[] = 
 		{
-#ifndef FINAL_RELEASE
+			// 0.4.1: these loaders used to be #ifndef FINAL_RELEASE but task #48
+			// (surface CollectDebugInformation / DumpVS / DumpPS in shipped
+			// Config.xml) wants them configurable in shipping builds too.
 			DECLARE_BVALUE(ShowDebugInfo),
 			DECLARE_BVALUE(DumpOn),
 			DECLARE_BVALUE(DumpInitialData),
@@ -292,7 +294,6 @@ bool ReadConfigRouterType()
 			DECLARE_BVALUE(ClearBeforeEveryDrawWhenDoDump),
 			DECLARE_BVALUE(ReplaceDSSurfacesByTextures),
 			DECLARE_BVALUE(TwoPassRendering),
-#endif
 			DECLARE_SVALUE(OutputMethodDll),
 			DECLARE_IVALUE(OutputMode),
 			DECLARE_IVALUE(OutputSpanMode),

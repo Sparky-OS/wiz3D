@@ -21,7 +21,8 @@
 
 void InitDirectories()
 {
-#ifdef ZLOG_ALLOW_TRACING
+	// 0.4.1: ungated so zlog file-path setup + Shaders/Dump/DX9/ layout both
+	// run in shipped (FINAL_RELEASE) builds. Field diagnostics stay useful.
 	InitializeLogging();
 	// 0.5.0 layout: wiz3D_Logs/<Game>/Shaders/Dump/DX9/ for mass dumps.
 	// Hunter/ sibling folder is reserved for user-captured single-shader
@@ -34,6 +35,10 @@ void InitDirectories()
 	PathAppend(gData.DumpDirectory, _T("DX9"));
 	CreateDirectory(gData.DumpDirectory, 0);
 	ClearDirectory(gData.DumpDirectory);
+#ifndef FINAL_RELEASE
+	// CCommandDumper (the mass command-trace replay facility) is only
+	// compiled in non-FINAL_RELEASE builds — see CommandDumper.h, which
+	// stubs out the class under FINAL_RELEASE.
 	CCommandDumper::GetInstance().Init();
 #endif
 }

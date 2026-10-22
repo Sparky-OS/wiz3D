@@ -3,8 +3,6 @@
 #include "ReadData.h"
 #include "../../CommonUtils/System.h"
 
-#ifdef ZLOG_ALLOW_TRACING
-
 void InitializeLogging()
 {
 	_tcscpy(gInfo.LogFileDirectory, gInfo.DriverDirectory);
@@ -28,6 +26,11 @@ void InitializeLogging()
 	_tcscat(gInfo.LogFileName, _T(".log"));
 
 	//--- Start ZLOg ---
+	// 0.4.1: zlog's namespace itself lives inside #ifdef ZLOG_ALLOW_TRACING
+	// in ZLOg/ZLOg.h, so ReopenLogger/InitializeFromXML/IsLoggerOpened are
+	// only visible outside FINAL_RELEASE. The path setup above still runs
+	// so ShaderHunter / Dumper paths get a valid wiz3D_Logs/<Game>/ root.
+#ifdef ZLOG_ALLOW_TRACING
 	if ( !zlog::IsLoggerOpened() )
 	{
 		TCHAR configPath[MAX_PATH];
@@ -35,6 +38,5 @@ void InitializeLogging()
 		zlog::InitializeFromXML(configPath, _T("Config.ZLOg"));
 		zlog::ReopenLogger(gInfo.LogFileName, true);
 	}
-}
-
 #endif
+}
